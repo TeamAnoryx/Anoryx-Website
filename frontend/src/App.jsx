@@ -18,6 +18,7 @@ import Solutions from './pages/solutions/Solutions.jsx';
 import CompanyAbout from './pages/company/About.jsx';
 import CompanyFoundersNote from './pages/company/FoundersNote.jsx';
 import CompanyVisionMission from './pages/company/VisionMission.jsx';
+import CompanyBusinessProposal from './pages/company/BusinessProposal.jsx';
 import Contact from './pages/contact/Contact.jsx';
 import Products from './pages/products/Products.jsx';
 import ProductDetail from './pages/products/ProductDetail.jsx';
@@ -62,6 +63,7 @@ function App() {
           <Route path="/company/about" element={<CompanyAbout />} />
           <Route path="/company/founders-note" element={<CompanyFoundersNote />} />
           <Route path="/company/vision-mission" element={<CompanyVisionMission />} />
+          <Route path="/company/business-proposal" element={<CompanyBusinessProposal />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/products" element={<Products />} />
           <Route path="/products/:slug" element={<ProductDetail />} />

@@ -56,6 +56,7 @@ const DROPDOWNS = [
       { text: 'About Anoryx', to: '/company/about', icon: <svg {...iconProps}><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg> },
       { text: "Founder's Note", to: '/company/founders-note', icon: <svg {...iconProps}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" /></svg> },
       { text: 'Vision & Mission', to: '/company/vision-mission', icon: <svg {...iconProps}><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></svg> },
+      { text: 'Business Proposal', to: '/company/business-proposal', icon: <svg {...iconProps}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M8 17l3-3 2 2 3-4" /></svg> },
     ],
   },
 ];
@@ -89,7 +90,7 @@ function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, token, logout, setUser } = useAuth();
-  const isDarkNavbar = location.pathname === '/company/founders-note' || location.pathname === '/platform/intelligence-core' || location.pathname === '/platform/security-trust' || location.pathname === '/solutions/industry-applications';
+  const isDarkNavbar = location.pathname === '/company/founders-note' || location.pathname === '/platform/intelligence-core' || location.pathname === '/platform/security-trust' || location.pathname === '/solutions/industry-applications' || location.pathname === '/company/business-proposal';
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);

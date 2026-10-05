@@ -50,6 +50,7 @@ const FOOTER_SECTIONS = [
       { label: 'About', to: '/company/about', icon: <svg {...iconProps}><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg> },
       { label: "Founder's Note", to: '/company/founders-note', icon: <svg {...iconProps}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" /></svg> },
       { label: 'Vision & Mission', to: '/company/vision-mission', icon: <svg {...iconProps}><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></svg> },
+      { label: 'Business Proposal', to: '/company/business-proposal', icon: <svg {...iconProps}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M8 17l3-3 2 2 3-4" /></svg> },
     ],
   },
   {

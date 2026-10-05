@@ -1,0 +1,392 @@
+/**
+ * ProposalViewer — renders the business proposal with pdf.js.
+ *
+ * Visitors receive only the server-made preview (first pages). The remaining pages are
+ * shown as blurred placeholders; scrolling into them reveals the request-access panel.
+ * A visitor with an approved access link (?access=<token>) gets the full document.
+ */
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { warmUpApi } from '../../context/AuthContext.jsx';
+import styles from './ProposalViewer.module.css';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const ACCESS_KEY = 'anoryx_proposal_access';
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export const PROPOSAL_ROLES = [
+  { value: 'investor', label: 'Investor' },
+  { value: 'cofounder', label: 'Potential co-founder' },
+  { value: 'partner', label: 'Design partner / customer' },
+  { value: 'other', label: 'Other' },
+];
+
+function readStoredAccess() {
+  try {
+    return localStorage.getItem(ACCESS_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+/** Takes ?access=<token> from the URL (once), stores it and removes it from the address bar. */
+function takeAccessFromUrl() {
+  const url = new URL(window.location.href);
+  const token = url.searchParams.get('access');
+  if (!token) return '';
+  url.searchParams.delete('access');
+  window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+  try {
+    localStorage.setItem(ACCESS_KEY, token);
+  } catch {
+    /* storage unavailable: token still works for this visit */
+  }
+  return token;
+}
+
+function PdfPage({ pdf, pageNumber, width }) {
+  const canvasRef = useRef(null);
+  const holderRef = useRef(null);
+  const [visible, setVisible] = useState(false);
+  const [ratio, setRatio] = useState(1.414); // A4 until measured
+
+  useEffect(() => {
+    const el = holderRef.current;
+    if (!el) return undefined;
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && setVisible(true), { rootMargin: '600px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!visible || !pdf || !width) return undefined;
+    let task;
+    let cancelled = false;
+    pdf.getPage(pageNumber).then((page) => {
+      if (cancelled) return;
+      const base = page.getViewport({ scale: 1 });
+      setRatio(base.height / base.width);
+      const scale = (width / base.width) * Math.min(window.devicePixelRatio || 1, 2);
+      const viewport = page.getViewport({ scale });
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      task = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+      task.promise.catch(() => {});
+    });
+    return () => {
+      cancelled = true;
+      task?.cancel();
+    };
+  }, [visible, pdf, pageNumber, width]);
+
+  return (
+    <div ref={holderRef} className={styles.page} style={{ aspectRatio: `1 / ${ratio}` }} data-page={pageNumber}>
+      <canvas ref={canvasRef} className={styles.canvas} aria-label={`Proposal page ${pageNumber}`} />
+      {!visible && <div className={styles.pageSkeleton} aria-hidden="true" />}
+    </div>
+  );
+}
+
+function LockedPage({ number }) {
+  return (
+    <div className={`${styles.page} ${styles.lockedPage}`} style={{ aspectRatio: '1 / 1.414' }} aria-hidden="true">
+      <div className={styles.fakeContent}>
+        <span className={styles.fakeTitle} />
+        {Array.from({ length: 9 }, (_, i) => (
+          <span key={i} className={styles.fakeLine} style={{ width: `${68 + ((i * 37 + number * 13) % 30)}%` }} />
+        ))}
+        <span className={styles.fakeBlock} />
+        {Array.from({ length: 6 }, (_, i) => (
+          <span key={`b${i}`} className={styles.fakeLine} style={{ width: `${60 + ((i * 23 + number * 7) % 35)}%` }} />
+        ))}
+      </div>
+      <span className={styles.lockedNumber}>{number}</span>
+    </div>
+  );
+}
+
+function RequestForm({ presetRole, lockedFrom, pageCount }) {
+  const [form, setForm] = useState({ fullName: '', workEmail: '', organisation: '', role: presetRole || '', message: '' });
+  const [status, setStatus] = useState('idle'); // idle | sending | sent | error
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (presetRole) setForm((f) => ({ ...f, role: presetRole }));
+  }, [presetRole]);
+
+  const update = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!form.fullName.trim() || !EMAIL_REGEX.test(form.workEmail.trim()) || !form.role) {
+      setStatus('error');
+      setError('Please add your name, a valid work email and how you would like to be involved.');
+      return;
+    }
+    setStatus('sending');
+    setError('');
+    try {
+      const res = await fetch(`${API_BASE}/api/proposal-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not send your request.');
+      setStatus('sent');
+    } catch (err) {
+      setStatus('error');
+      setError(err.message || 'Could not send your request. Please try again.');
+    }
+  };
+
+  if (status === 'sent') {
+    return (
+      <div className={styles.sent} role="status">
+        <svg className={styles.sentIcon} viewBox="0 0 52 52" aria-hidden="true">
+          <circle cx="26" cy="26" r="24" />
+          <path d="M15 27l7 7 15-16" />
+        </svg>
+        <h3>Request sent</h3>
+        <p>
+          We&apos;ll review it and email <strong>{form.workEmail}</strong> a private link that unlocks pages{' '}
+          {lockedFrom}–{pageCount}.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form className={styles.form} onSubmit={submit} noValidate>
+      <div className={styles.formGrid}>
+        <label>
+          Full name
+          <input name="fullName" value={form.fullName} onChange={update} onFocus={warmUpApi} autoComplete="name" required />
+        </label>
+        <label>
+          Work email
+          <input name="workEmail" type="email" value={form.workEmail} onChange={update} autoComplete="email" required />
+        </label>
+        <label>
+          Firm or company
+          <input name="organisation" value={form.organisation} onChange={update} autoComplete="organization" />
+        </label>
+        <label>
+          I&apos;m interested as
+          <select name="role" value={form.role} onChange={update} required>
+            <option value="">Select one</option>
+            {PROPOSAL_ROLES.map((r) => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className={styles.full}>
+          <span>
+            Message <span className={styles.optional}>(optional)</span>
+          </span>
+          <textarea name="message" rows={2} value={form.message} onChange={update} placeholder="A line about you and what you'd like to discuss" />
+        </label>
+      </div>
+      {status === 'error' && <p className={styles.formError} role="alert">{error}</p>}
+      <button type="submit" className={styles.submit} disabled={status === 'sending'}>
+        {status === 'sending' ? 'Sending…' : 'Request full access'}
+      </button>
+      <p className={styles.formNote}>Requests are reviewed personally by the founder. Your details are used only to reply to you.</p>
+    </form>
+  );
+}
+
+export default function ProposalViewer({ presetRole = '', requestSignal = 0, onAccess }) {
+  const wrapRef = useRef(null);
+  const scrollRef = useRef(null);
+  const lockedRef = useRef(null);
+  const [meta, setMeta] = useState(null);
+  const [pdf, setPdf] = useState(null);
+  const [access, setAccess] = useState(null); // { name, expiresAt } when unlocked
+  const [loadError, setLoadError] = useState('');
+  const [width, setWidth] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [fullBlobUrl, setFullBlobUrl] = useState('');
+
+  // Load meta + the right document (full when the access token is valid, else preview).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = takeAccessFromUrl() || readStoredAccess();
+        const metaRes = await fetch(`${API_BASE}/api/proposal/meta`);
+        const metaData = await metaRes.json().catch(() => ({}));
+        if (!metaRes.ok) throw new Error(metaData.error || 'The proposal is not available right now.');
+
+        let bytes;
+        let unlocked = null;
+        if (token) {
+          const check = await fetch(`${API_BASE}/api/proposal/access`, { headers: { Authorization: `Bearer ${token}` } });
+          if (check.ok) {
+            unlocked = await check.json();
+            const docRes = await fetch(`${API_BASE}/api/proposal/document`, { headers: { Authorization: `Bearer ${token}` } });
+            if (docRes.ok) bytes = await docRes.arrayBuffer();
+            else unlocked = null;
+          } else if (check.status === 401) {
+            try { localStorage.removeItem(ACCESS_KEY); } catch { /* ignore */ }
+          }
+        }
+        if (!bytes) {
+          const prevRes = await fetch(`${API_BASE}/api/proposal/preview`);
+          if (!prevRes.ok) throw new Error('The proposal preview could not be loaded.');
+          bytes = await prevRes.arrayBuffer();
+        }
+
+        const pdfjs = await import('pdfjs-dist');
+        pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+        if (unlocked) setFullBlobUrl(URL.createObjectURL(new Blob([bytes.slice(0)], { type: 'application/pdf' })));
+        const doc = await pdfjs.getDocument({ data: new Uint8Array(bytes) }).promise;
+        if (cancelled) return;
+        setMeta({ pageCount: metaData.pageCount, previewPages: metaData.previewPages });
+        setAccess(unlocked);
+        if (unlocked) onAccess?.(unlocked);
+        setPdf(doc);
+      } catch (err) {
+        if (!cancelled) setLoadError(err.message || 'The proposal could not be loaded.');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => () => fullBlobUrl && URL.revokeObjectURL(fullBlobUrl), [fullBlobUrl]);
+
+  // Page width follows the viewer width.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return undefined;
+    const ro = new ResizeObserver(([entry]) => setWidth(Math.round(entry.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const renderedPages = pdf ? pdf.numPages : 0;
+  const lockedFrom = meta ? meta.previewPages + 1 : 4;
+  const lockedCount = meta && !access ? Math.max(0, meta.pageCount - meta.previewPages) : 0;
+
+  // Track the current page and open the request panel once the reader reaches the locked pages.
+  const onScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const mid = el.scrollTop + el.clientHeight * 0.35;
+    const pages = el.querySelectorAll('[data-page]');
+    let page = 1;
+    pages.forEach((p) => {
+      if (p.offsetTop <= mid) page = Number(p.dataset.page);
+    });
+    setCurrentPage(page);
+    if (lockedRef.current && !access) {
+      const reached = lockedRef.current.offsetTop < el.scrollTop + el.clientHeight * 0.8;
+      if (reached) setPanelOpen(true);
+    }
+  }, [access]);
+
+  // Another section asked to open the request form (e.g. "I'm an investor" button).
+  useEffect(() => {
+    if (!requestSignal || access) return;
+    setPanelOpen(true);
+    wrapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [requestSignal, access]);
+
+  if (loadError) {
+    return (
+      <div className={styles.viewerWrap}>
+        <div className={styles.errorBox} role="alert">
+          <p>{loadError}</p>
+          <p>
+            You can also request the proposal by email:{' '}
+            <a href="mailto:afnan.ceo@anoryxtechsolutions.com?subject=Business%20proposal%20request">afnan.ceo@anoryxtechsolutions.com</a>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={wrapRef} className={styles.viewerWrap}>
+      <div className={styles.toolbar}>
+        <div className={styles.toolbarLeft}>
+          <span className={styles.docIcon} aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg>
+          </span>
+          <span className={styles.docName}>Anoryx Business Proposal</span>
+        </div>
+        <div className={styles.toolbarRight}>
+          {meta && (
+            <span className={styles.pageCounter} aria-live="polite">
+              Page {Math.min(currentPage, meta.pageCount)} of {meta.pageCount}
+            </span>
+          )}
+          {access ? (
+            <>
+              <span className={styles.unlockedBadge}>Unlocked</span>
+              {fullBlobUrl && (
+                <a className={styles.toolbarBtn} href={fullBlobUrl} download="Anoryx-Business-Proposal.pdf">Download</a>
+              )}
+            </>
+          ) : (
+            meta && (
+              <button type="button" className={styles.toolbarBtn} onClick={() => setPanelOpen(true)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+                Request full access
+              </button>
+            )
+          )}
+        </div>
+      </div>
+
+      <div ref={scrollRef} className={styles.scroller} onScroll={onScroll} tabIndex={0} aria-label="Business proposal pages">
+        {!pdf && (
+          <div className={styles.loading}>
+            <span className={styles.spinner} aria-hidden="true" />
+            Loading the proposal…
+          </div>
+        )}
+        {pdf &&
+          Array.from({ length: renderedPages }, (_, i) => (
+            <PdfPage key={i} pdf={pdf} pageNumber={i + 1} width={width - 32} />
+          ))}
+        {pdf && lockedCount > 0 && (
+          <div ref={lockedRef} className={styles.lockedZone}>
+            {Array.from({ length: lockedCount }, (_, i) => (
+              <LockedPage key={i} number={lockedFrom + i} />
+            ))}
+          </div>
+        )}
+        {access && (
+          <p className={styles.accessNote}>
+            Shared with {access.name}. Access ends {new Date(access.expiresAt).toLocaleDateString()}. Please don&apos;t forward this document.
+          </p>
+        )}
+      </div>
+
+      {!access && meta && (
+        <div className={`${styles.lockPanel} ${panelOpen ? styles.lockPanelOpen : ''}`} aria-hidden={!panelOpen}>
+          <div className={styles.lockPanelInner} inert={panelOpen ? undefined : ''}>
+            <button type="button" className={styles.closePanel} onClick={() => setPanelOpen(false)} aria-label="Close">×</button>
+            <div className={styles.lockHead}>
+              <span className={styles.lockIcon} aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+              </span>
+              <div>
+                <h3>Pages {lockedFrom}–{meta.pageCount} are shared on request</h3>
+                <p>The full proposal covers our go-to-market plan, unit economics and capital plan. Tell us who you are and we&apos;ll send you a private link.</p>
+              </div>
+            </div>
+            <RequestForm presetRole={presetRole} lockedFrom={lockedFrom} pageCount={meta.pageCount} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

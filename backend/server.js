@@ -15,6 +15,7 @@ const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 
 const { ensureDb } = require('./db.js');
+const proposal = require('./proposal.js');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -353,6 +354,268 @@ app.post('/api/contact', async (req, res) => {
 });
 
 // Health check
+// ── Business proposal (preview public, full document on approval) ─────────────
+const PROPOSAL_ROLES = {
+  investor: 'Investor',
+  cofounder: 'Potential co-founder',
+  partner: 'Design partner / customer',
+  other: 'Other',
+};
+const PUBLIC_API_URL = (process.env.PUBLIC_API_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+const SITE_URL = (process.env.SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+const PROPOSAL_PAGE_PATH = '/company/business-proposal';
+
+const proposalRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { success: false, error: 'Too many requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const bearerToken = (req) => {
+  const auth = req.headers.authorization || '';
+  return auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+};
+
+/** Send an email; in development without SMTP, log the important link instead. */
+async function sendMailSafe(options, devLinkLabel, devLink) {
+  const transporter = getTransporter();
+  if (!transporter) {
+    if (!isProduction && devLink) console.log(`[dev] ${devLinkLabel}: ${devLink}`);
+    return false;
+  }
+  try {
+    await transporter.sendMail({ from: process.env.SMTP_FROM || CONTACT_EMAIL, ...options });
+    return true;
+  } catch (err) {
+    console.error('Email send error:', err.message);
+    if (!isProduction && devLink) console.log(`[dev] ${devLinkLabel}: ${devLink}`);
+    return false;
+  }
+}
+
+// GET /api/proposal/meta — page counts for the viewer
+app.get('/api/proposal/meta', async (req, res) => {
+  const db = await ensureDb();
+  if (!db) return res.status(503).json({ success: false, error: 'Database not connected' });
+  try {
+    const doc = await proposal.loadDocument(db);
+    if (!doc) return res.status(404).json({ success: false, error: 'Proposal not available yet' });
+    res.json({
+      success: true,
+      pageCount: doc.pageCount,
+      previewPages: Math.min(proposal.PREVIEW_PAGES, doc.pageCount),
+    });
+  } catch (err) {
+    console.error('Proposal meta error:', err);
+    res.status(500).json({ success: false, error: 'Could not load the proposal' });
+  }
+});
+
+// GET /api/proposal/preview — first pages only (public)
+app.get('/api/proposal/preview', async (req, res) => {
+  const db = await ensureDb();
+  if (!db) return res.status(503).end();
+  try {
+    const doc = await proposal.loadDocument(db);
+    if (!doc) return res.status(404).end();
+    res.set({ 'Content-Type': 'application/pdf', 'Cache-Control': 'public, max-age=600' });
+    res.send(doc.preview);
+  } catch (err) {
+    console.error('Proposal preview error:', err);
+    res.status(500).end();
+  }
+});
+
+// GET /api/proposal/access — is this access token valid? (Authorization: Bearer <token>)
+app.get('/api/proposal/access', async (req, res) => {
+  const db = await ensureDb();
+  if (!db) return res.status(503).json({ success: false, error: 'Database not connected' });
+  const request = await proposal.findAccess(db, bearerToken(req));
+  if (!request) return res.status(401).json({ success: false, error: 'This access link is invalid or has expired.' });
+  res.json({ success: true, name: request.fullName, expiresAt: request.accessExpiresAt });
+});
+
+// GET /api/proposal/document — full PDF for approved requesters only
+app.get('/api/proposal/document', async (req, res) => {
+  const db = await ensureDb();
+  if (!db) return res.status(503).end();
+  try {
+    const request = await proposal.findAccess(db, bearerToken(req));
+    if (!request) return res.status(401).json({ success: false, error: 'This access link is invalid or has expired.' });
+    const doc = await proposal.loadDocument(db);
+    if (!doc) return res.status(404).end();
+    res.set({ 'Content-Type': 'application/pdf', 'Cache-Control': 'private, no-store' });
+    res.send(doc.full);
+  } catch (err) {
+    console.error('Proposal document error:', err);
+    res.status(500).end();
+  }
+});
+
+// POST /api/proposal-request — ask for full access; emails the team a "Give access" link
+app.post('/api/proposal-request', proposalRateLimiter, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const clean = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+    const fullName = clean(body.fullName, 120);
+    const workEmail = clean(body.workEmail, 200).toLowerCase();
+    const organisation = clean(body.organisation, 160);
+    const role = PROPOSAL_ROLES[body.role] ? body.role : '';
+    const message = clean(body.message, 2000);
+
+    if (!fullName || !EMAIL_REGEX.test(workEmail) || !role) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please add your name, a valid work email and how you would like to be involved.',
+      });
+    }
+
+    const db = await ensureDb();
+    if (!db) {
+      return res.status(503).json({
+        success: false,
+        error: 'We could not record your request right now. Please try again shortly.',
+      });
+    }
+
+    const { id, reviewToken } = await proposal.createRequest(db, { fullName, workEmail, organisation, role, message });
+    const reviewUrl = `${PUBLIC_API_URL}/api/proposal/review?id=${id}&token=${encodeURIComponent(reviewToken)}`;
+    const roleLabel = PROPOSAL_ROLES[role];
+
+    await sendMailSafe(
+      {
+        to: CONTACT_EMAIL,
+        replyTo: workEmail,
+        subject: `[Anoryx] Proposal access request: ${fullName.replace(/[\r\n]+/g, ' ')} (${roleLabel})`,
+        text: [
+          `${fullName} <${workEmail}> asked for access to the business proposal.`,
+          organisation ? `Organisation: ${organisation}` : '',
+          `Interest: ${roleLabel}`,
+          message ? `\nMessage:\n${message}` : '',
+          `\nReview and give access: ${reviewUrl}`,
+        ].filter(Boolean).join('\n'),
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:560px;color:#091E42">
+            <h2 style="margin:0 0 12px">New proposal access request</h2>
+            <p style="margin:0 0 4px"><strong>${escapeHtml(fullName)}</strong> &lt;<a href="mailto:${escapeHtml(workEmail)}">${escapeHtml(workEmail)}</a>&gt;</p>
+            ${organisation ? `<p style="margin:0 0 4px">Organisation: ${escapeHtml(organisation)}</p>` : ''}
+            <p style="margin:0 0 12px">Interest: ${escapeHtml(roleLabel)}</p>
+            ${message ? `<p style="margin:0 0 16px;white-space:pre-wrap;background:#F4F5F7;padding:12px;border-radius:8px">${escapeHtml(message)}</p>` : ''}
+            <p style="margin:24px 0">
+              <a href="${reviewUrl}" style="background:#0052CC;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Give access</a>
+            </p>
+            <p style="font-size:12px;color:#6B778C">The button opens a confirmation page where you can approve or decline. Nothing is shared until you confirm.</p>
+          </div>`,
+      },
+      'Review link',
+      reviewUrl
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Request sent. You'll get an email with your private access link once it's approved.",
+    });
+  } catch (err) {
+    console.error('Proposal request error:', err);
+    res.status(500).json({ success: false, error: 'Something went wrong. Please try again.' });
+  }
+});
+
+const reviewPage = (title, bodyHtml) => `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>${escapeHtml(title)} | Anoryx</title>
+<style>
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0B1020;font-family:Inter,Arial,sans-serif;color:#091E42;padding:16px}
+  .card{background:#fff;border-radius:16px;max-width:520px;width:100%;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  h1{font-size:22px;margin:0 0 16px} p{line-height:1.6;margin:0 0 8px;color:#42526E} strong{color:#091E42}
+  .msg{background:#F4F5F7;border-radius:8px;padding:12px;white-space:pre-wrap;margin:12px 0}
+  .row{display:flex;gap:12px;margin-top:24px;flex-wrap:wrap}
+  button{flex:1;min-width:140px;border:0;border-radius:10px;padding:14px 18px;font-size:15px;font-weight:700;cursor:pointer}
+  .ok{background:#0052CC;color:#fff}.no{background:#F4F5F7;color:#42526E}
+  .link{word-break:break-all;background:#DEEBFF;padding:10px;border-radius:8px;font-size:13px}
+</style></head><body><div class="card">${bodyHtml}</div></body></html>`;
+
+// GET /api/proposal/review — confirmation page opened from the email (no side effects,
+// so email scanners that pre-open links can't approve anything)
+app.get('/api/proposal/review', async (req, res) => {
+  const db = await ensureDb();
+  if (!db) return res.status(503).send(reviewPage('Unavailable', '<h1>Database unavailable</h1><p>Please try again shortly.</p>'));
+  const { id = '', token = '' } = req.query;
+  const request = await proposal.findRequestForReview(db, String(id), String(token), ObjectId);
+  if (!request) return res.status(404).send(reviewPage('Not found', '<h1>Link not valid</h1><p>This review link is invalid.</p>'));
+  if (request.expired) return res.status(410).send(reviewPage('Expired', '<h1>Link expired</h1><p>Ask them to send a new request.</p>'));
+
+  const roleLabel = PROPOSAL_ROLES[request.role] || request.role;
+  const details = `
+    <p><strong>${escapeHtml(request.fullName)}</strong> &lt;${escapeHtml(request.workEmail)}&gt;</p>
+    ${request.organisation ? `<p>Organisation: ${escapeHtml(request.organisation)}</p>` : ''}
+    <p>Interest: ${escapeHtml(roleLabel)}</p>
+    ${request.message ? `<div class="msg">${escapeHtml(request.message)}</div>` : ''}`;
+
+  if (request.status !== 'pending') {
+    return res.send(reviewPage('Already decided', `<h1>Already ${escapeHtml(request.status)}</h1>${details}`));
+  }
+  res.send(reviewPage('Give access', `
+    <h1>Give access to the business proposal?</h1>
+    ${details}
+    <form method="post" action="${PUBLIC_API_URL}/api/proposal/review" class="row">
+      <input type="hidden" name="id" value="${escapeHtml(String(id))}">
+      <input type="hidden" name="token" value="${escapeHtml(String(token))}">
+      <button class="ok" name="decision" value="approve" type="submit">Give access</button>
+      <button class="no" name="decision" value="deny" type="submit">Decline</button>
+    </form>
+    <p style="font-size:12px;margin-top:16px">Approving emails ${escapeHtml(request.workEmail)} a private link that unlocks the full proposal for ${proposal.ACCESS_TTL_DAYS} days.</p>`));
+});
+
+// POST /api/proposal/review — approve or decline (form on the confirmation page)
+app.post('/api/proposal/review', async (req, res) => {
+  const db = await ensureDb();
+  if (!db) return res.status(503).send(reviewPage('Unavailable', '<h1>Database unavailable</h1><p>Please try again shortly.</p>'));
+  const { id = '', token = '', decision = '' } = req.body || {};
+  const request = await proposal.findRequestForReview(db, String(id), String(token), ObjectId);
+  if (!request) return res.status(404).send(reviewPage('Not found', '<h1>Link not valid</h1>'));
+  if (request.expired) return res.status(410).send(reviewPage('Expired', '<h1>Link expired</h1>'));
+  if (request.status !== 'pending') {
+    return res.send(reviewPage('Already decided', `<h1>Already ${escapeHtml(request.status)}</h1>`));
+  }
+
+  if (decision === 'deny') {
+    await proposal.denyRequest(db, request);
+    return res.send(reviewPage('Declined', `<h1>Request declined</h1><p>${escapeHtml(request.fullName)} will not get access. No email was sent to them.</p>`));
+  }
+  if (decision !== 'approve') return res.status(400).send(reviewPage('Error', '<h1>Unknown action</h1>'));
+
+  const { accessToken, expiresAt } = await proposal.approveRequest(db, request);
+  const accessUrl = `${SITE_URL}${PROPOSAL_PAGE_PATH}?access=${encodeURIComponent(accessToken)}`;
+  const firstName = request.fullName.split(' ')[0];
+  const sent = await sendMailSafe(
+    {
+      to: request.workEmail,
+      replyTo: CONTACT_EMAIL,
+      subject: 'Your access to the Anoryx business proposal',
+      text: `Hi ${firstName},\n\nYou now have access to the Anoryx business proposal. Open it here (valid until ${expiresAt.toDateString()}):\n${accessUrl}\n\nPlease don't share this link.\n\nAfnan Pasha\nFounder & CEO, Anoryx Tech Solutions`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:560px;color:#091E42">
+          <p>Hi ${escapeHtml(firstName)},</p>
+          <p>Thank you for your interest in Anoryx. You now have access to our business proposal.</p>
+          <p style="margin:24px 0"><a href="${accessUrl}" style="background:#0052CC;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Open the proposal</a></p>
+          <p style="font-size:13px;color:#6B778C">This private link works until ${escapeHtml(expiresAt.toDateString())}. Please don't share it.</p>
+          <p>Afnan Pasha<br>Founder &amp; CEO, Anoryx Tech Solutions</p>
+        </div>`,
+    },
+    'Access link',
+    accessUrl
+  );
+
+  res.send(reviewPage('Access given', `
+    <h1>Access given</h1>
+    <p>${escapeHtml(request.fullName)} can now read the full proposal until ${escapeHtml(expiresAt.toDateString())}.</p>
+    <p>${sent ? `We emailed the access link to ${escapeHtml(request.workEmail)}.` : '<strong>The email could not be sent.</strong> Send them this link yourself:'}</p>
+    ${sent ? '' : `<p class="link">${escapeHtml(accessUrl)}</p>`}`));
+});
+
 // Health check. Also used by the frontend to wake the server (and the DB connection)
 // before the visitor reaches the sign-up form.
 app.get('/api/health', async (req, res) => {

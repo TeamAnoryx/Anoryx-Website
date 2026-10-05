@@ -21,3 +21,6 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Private documents (shared on request, never published)
+frontend/src/assets/*.pdf
