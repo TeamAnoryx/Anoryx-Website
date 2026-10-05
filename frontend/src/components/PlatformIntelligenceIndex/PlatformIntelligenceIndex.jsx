@@ -113,7 +113,8 @@ export default function PlatformIntelligenceIndex() {
                   role="region"
                   aria-labelledby={`trigger-${item.id}`}
                 >
-                  <div className={styles.answerInner}>
+                  <div className={styles.answerInner} inert={isOpen ? undefined : ''}>
+                    <div className={styles.answerBody}>
                     <p className={styles.answerPrimary}>{item.primary}</p>
                     {item.secondary && (
                       <p className={styles.answerSecondary}>{item.secondary}</p>
@@ -126,6 +127,7 @@ export default function PlatformIntelligenceIndex() {
                         Know More
                       </Link>
                     )}
+                    </div>
                   </div>
                 </div>
               </article>

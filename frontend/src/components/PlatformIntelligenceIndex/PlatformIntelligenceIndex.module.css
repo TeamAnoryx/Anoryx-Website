@@ -207,6 +207,17 @@
 .answerInner {
   min-height: 0;
   overflow: hidden;
+  /* No padding here: padding can't collapse to 0fr and leaves a strip of the answer visible. */
+  visibility: hidden;
+  transition: visibility 0s linear 280ms;
+}
+
+.module[data-open="true"] .answerInner {
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.answerBody {
   padding: 0 var(--space-4) var(--space-4);
 }
 
@@ -323,7 +334,7 @@
     max-height: 2000px;
   }
 
-  .answerInner {
+  .answerBody {
     padding: 0 var(--space-3) var(--space-3);
   }
 
@@ -352,7 +363,7 @@
     padding: var(--space-3) var(--space-2);
   }
 
-  .answerInner {
+  .answerBody {
     padding: 0 var(--space-2) var(--space-3);
   }
 }
