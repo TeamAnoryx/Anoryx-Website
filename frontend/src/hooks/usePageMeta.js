@@ -5,7 +5,7 @@
 
 import { useEffect } from 'react';
 
-const SITE_URL = 'https://anoryxtechsolutions.com';
+import { SITE_URL, OG_IMAGE } from '../data/seo.js';
 
 function upsertMeta(attr, key, content) {
   let el = document.head.querySelector(`meta[${attr}="${key}"]`);
@@ -22,6 +22,21 @@ function upsertMeta(attr, key, content) {
   };
 }
 
+function upsertCanonical(href) {
+  let el = document.head.querySelector('link[rel="canonical"]');
+  const previous = el ? el.getAttribute('href') : null;
+  if (!el) {
+    el = document.createElement('link');
+    el.setAttribute('rel', 'canonical');
+    document.head.appendChild(el);
+  }
+  el.setAttribute('href', href);
+  return () => {
+    if (previous === null) el.remove();
+    else el.setAttribute('href', previous);
+  };
+}
+
 export default function usePageMeta({ title, description, path, jsonLd }) {
   useEffect(() => {
     const previousTitle = document.title;
@@ -34,6 +49,9 @@ export default function usePageMeta({ title, description, path, jsonLd }) {
       upsertMeta('property', 'og:url', url),
       upsertMeta('name', 'twitter:title', title),
       upsertMeta('name', 'twitter:description', description),
+      upsertMeta('property', 'og:image', OG_IMAGE),
+      upsertMeta('name', 'twitter:image', OG_IMAGE),
+      upsertCanonical(url),
     ];
 
     let script = null;
