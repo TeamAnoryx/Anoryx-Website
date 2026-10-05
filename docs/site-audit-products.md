@@ -43,7 +43,7 @@ Source brief: `ANORYX_SITE_PRODUCTS_UPDATE.md`. Branch: `site/products-v2`.
 | `components/Main/Main.jsx` | Link `/products#pii-sentinel` "Explore Privacy Intelligence" | `/products/sentinel` "Explore Anoryx Sentinel" |
 | `components/StripeSection/StripeSection.jsx` | "3 intelligent products in ecosystem" | "4 products in the Anoryx EcoSystem" |
 | `components/WhySection/WhySection.jsx` | "Three products … PII Sentinel, B4Labs, and Rendly" | "Four products, one platform …" |
-| `components/PlatformIntelligenceIndex/*` | PII Sentinel, B4LABS, Rendly | Canonical names; B4Labs described as internal research lab |
+| `components/PlatformIntelligenceIndex/*` | PII Sentinel, B4LABS, Rendly | Canonical names; B4Labs removed |
 | `components/LegalModal/legalContent.jsx` | PII Sentinel, Rendly | Anoryx Sentinel, Anoryx Rendly |
 | `pages/company/About.jsx` | PII Sentinel / Rendly / B4LABS cards and timeline | Canonical names; product grid from data; company described as building the Anoryx EcoSystem; patents fact kept |
 | `pages/company/FoundersNote.jsx` | PII Sentinel in roadmap table | Canonical names only (founder's text otherwise unchanged) |
@@ -62,7 +62,6 @@ Old URLs were in-page anchors on a client-rendered SPA, so they redirect in the 
 
 - `/products#pii-sentinel` → `/products/sentinel`
 - `/products#rendly` → `/products/rendly`
-- `/products#b4labs` → scrolls to `#research` on `/products`
 - `/solutions#pii-sentinel-video` → `/products/sentinel` (the old PII Sentinel demo video was removed: it showed a different, earlier product)
 
 ## Items for Affu
@@ -73,7 +72,6 @@ Old URLs were in-page anchors on a client-rendered SPA, so they redirect in the 
 
 ### AFFU: keep / remove?
 
-- **B4Labs**: kept as a one-line research mention on `/products#research` and as a card on About. Not part of the EcoSystem.
 - **Home feature cards 2 and 3** (`pages/Home.jsx`): AI workflow automation (n8n visual) and blockchain/digital trust. No matching product.
 - **Main.jsx n8n workflow-builder visual** (`components/Main/Main.jsx`).
 - **"More from Anoryx" on /solutions**: Enterprise Automation, Industry Applications, custom backend engineering, domain-specific SLM systems.
@@ -88,3 +86,7 @@ Old URLs were in-page anchors on a client-rendered SPA, so they redirect in the 
 - No 404 page exists in the app (unknown routes render an empty main area). Unknown product slugs redirect to `/products`.
 - No email templates other than the contact email in `backend/server.js`.
 - Lighthouse not run; diagrams have `<title>`/`<desc>` and a visible text caption.
+
+## B4Labs
+
+Removed from every page on request (Products research block, About card, Founder's Note roadmap, platform intelligence FAQ).

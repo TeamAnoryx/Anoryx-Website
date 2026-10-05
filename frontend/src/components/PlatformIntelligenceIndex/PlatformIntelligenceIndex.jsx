@@ -52,7 +52,7 @@ const INDEX_ITEMS = [
     id: 'continuous-improvement',
     question: 'How does the platform continuously improve and learn?',
     primary:
-      'The platform improves through B4Labs, Anoryx’s internal research lab, converting proof-of-concepts into production-ready AI frameworks, reusable agent modules, and workflow intelligence. Operational feedback, research experimentation, and continuous optimization are built into the architecture.',
+      'The platform improves through continuous research and prototyping, converting proof-of-concepts into production-ready AI frameworks, reusable agent modules, and workflow intelligence. Operational feedback, research experimentation, and continuous optimization are built into the architecture.',
     secondary:
       'Learning is applied across products: Sentinel benefits from improved detection models, Delta from better cost forecasting, and Rendly from evolving matching capabilities.',
     knowMoreLink: null,

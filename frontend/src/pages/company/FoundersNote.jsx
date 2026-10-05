@@ -200,15 +200,15 @@ export default function FoundersNote() {
                   </tr>
                   <tr>
                     <td data-label="Timeline"><span className={styles.timelineBadge}><span className={styles.timelineIcon} aria-hidden>2</span> Year 2</span></td>
-                    <td data-label="Focus Area">Sentinel expansion; expanding Rendly; developing B4Labs</td>
-                    <td data-label="Strategic Objective">Expand Sentinel; scale Rendly; develop B4Labs simultaneously.</td>
-                    <td data-label="Expected Outcome">Multi-product traction; B4Labs in active development; stronger Rendly and Sentinel presence.</td>
+                    <td data-label="Focus Area">Sentinel expansion; expanding Rendly</td>
+                    <td data-label="Strategic Objective">Expand Sentinel; scale Rendly.</td>
+                    <td data-label="Expected Outcome">Multi-product traction; stronger Rendly and Sentinel presence.</td>
                   </tr>
                   <tr>
                     <td data-label="Timeline"><span className={styles.timelineBadge}><span className={styles.timelineIcon} aria-hidden>5</span> Year 5</span></td>
-                    <td data-label="Focus Area">B4Labs globally; Rendly globally</td>
-                    <td data-label="Strategic Objective">Take B4Labs and Rendly global; scale as global intelligence infrastructure provider.</td>
-                    <td data-label="Expected Outcome">B4Labs and Rendly in global markets; recognized deep-tech platform company; strong growth and adoption.</td>
+                    <td data-label="Focus Area">Rendly and Sentinel globally</td>
+                    <td data-label="Strategic Objective">Take Rendly and Sentinel global; scale as global intelligence infrastructure provider.</td>
+                    <td data-label="Expected Outcome">Rendly and Sentinel in global markets; recognized deep-tech platform company; strong growth and adoption.</td>
                   </tr>
                 </tbody>
               </table>

@@ -84,7 +84,7 @@ export default function Products() {
       navigate(LEGACY_HASHES[hash], { replace: true });
       return undefined;
     }
-    const el = document.getElementById(hash === 'b4labs' ? 'research' : hash);
+    const el = document.getElementById(hash);
     if (!el) return undefined;
     const t = setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     return () => clearTimeout(t);
@@ -223,28 +223,7 @@ export default function Products() {
           </div>
         </section>
 
-        {/* Section 7 — Research. AFFU: keep / remove? B4Labs was listed as a product on the previous page. */}
-        <section
-          id="research"
-          className={sectionClass(styles.sectionAlt, inView.research, eco.anchorTarget)}
-          ref={register('research')}
-          aria-labelledby="research-title"
-        >
-          <div className={styles.container}>
-            <div className={styles.inProgressBlock}>
-              <span className={styles.inProgressIcon} aria-hidden="true">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></svg>
-              </span>
-              <h2 id="research-title" className={styles.inProgressTitle}>From Anoryx research: B4Labs</h2>
-              <p className={styles.inProgressText}>
-                B4Labs is Anoryx&apos;s internal research and development lab. It prototypes the agent, detection and
-                orchestration components that later ship inside the {PLATFORM_NAME}.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Section 8 — CTA */}
+        {/* Section 7 — CTA */}
         <section className={`${styles.ctaSection} ${inView.cta ? styles.inView : ''}`} ref={register('cta')} aria-labelledby="products-cta-title">
           <div className={styles.container}>
             <h2 id="products-cta-title" className={styles.ctaHeading}>Become a design partner.</h2>

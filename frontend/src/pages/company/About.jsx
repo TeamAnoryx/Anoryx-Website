@@ -377,16 +377,6 @@ export default function About() {
                   <span className={styles.productCardLink}>View product →</span>
                 </Link>
               ))}
-              {/* AFFU: keep / remove? B4Labs is a research lab, not part of the EcoSystem product line. */}
-              <Link to="/products#research" className={`${styles.productCard} ${styles.productCardPurple}`}>
-                <span className={styles.productCardIcon} aria-hidden><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></svg></span>
-                <span className={styles.productCardLabel}>AI Research</span>
-                <h3 className={styles.productCardTitle}>B4LABS</h3>
-                <p className={styles.productCardBody}>
-                  AI research and experimental technology lab. Focus on autonomous agents, multi-agent workflows, LLM integration, and prototype development. Proof-of-concept completed; advanced development and expansion in progress. Innovation engine for Anoryx products.
-                </p>
-                <span className={styles.productCardLink}>View research platform →</span>
-              </Link>
             </div>
           </div>
         </section>
