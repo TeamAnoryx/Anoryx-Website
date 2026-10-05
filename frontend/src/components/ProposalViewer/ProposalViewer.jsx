@@ -13,6 +13,7 @@ import styles from './ProposalViewer.module.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const ACCESS_KEY = 'anoryx_proposal_access';
+const A4_RATIO = 1.414;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const PROPOSAL_ROLES = [
@@ -83,16 +84,16 @@ function PdfPage({ pdf, pageNumber, width }) {
   }, [visible, pdf, pageNumber, width]);
 
   return (
-    <div ref={holderRef} className={styles.page} style={{ aspectRatio: `1 / ${ratio}` }} data-page={pageNumber}>
+    <div ref={holderRef} className={styles.page} style={{ aspectRatio: `1 / ${ratio}`, width: width || undefined }} data-page={pageNumber}>
       <canvas ref={canvasRef} className={styles.canvas} aria-label={`Proposal page ${pageNumber}`} />
       {!visible && <div className={styles.pageSkeleton} aria-hidden="true" />}
     </div>
   );
 }
 
-function LockedPage({ number }) {
+function LockedPage({ number, width }) {
   return (
-    <div className={`${styles.page} ${styles.lockedPage}`} style={{ aspectRatio: '1 / 1.414' }} aria-hidden="true">
+    <div className={`${styles.page} ${styles.lockedPage}`} style={{ aspectRatio: '1 / 1.414', width: width || undefined }} data-page={number} aria-hidden="true">
       <div className={styles.fakeContent}>
         <span className={styles.fakeTitle} />
         {Array.from({ length: 9 }, (_, i) => (
@@ -207,9 +208,34 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
   const [pdf, setPdf] = useState(null);
   const [access, setAccess] = useState(null); // { name, expiresAt } when unlocked
   const [loadError, setLoadError] = useState('');
-  const [width, setWidth] = useState(0);
+  const [box, setBox] = useState({ w: 0, h: 0 });
   const [currentPage, setCurrentPage] = useState(1);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  // Full-screen viewer: lock page scroll, close on Escape, keep the reader on the same page.
+  useEffect(() => {
+    if (!expanded) return undefined;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => e.key === 'Escape' && setExpanded(false);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [expanded]);
+
+  const toggleExpanded = useCallback((next) => {
+    const el = scrollRef.current;
+    const page = el?.querySelector(`[data-page="${currentPage}"]`);
+    setExpanded(next);
+    // After the layout changes size, bring the same page back into view.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const target = scrollRef.current?.querySelector(`[data-page="${page?.dataset.page || 1}"]`);
+      if (target && scrollRef.current) scrollRef.current.scrollTop = target.offsetTop - 16;
+    }));
+  }, [currentPage]);
   const [fullBlobUrl, setFullBlobUrl] = useState('');
 
   // Load meta + the right document (full when the access token is valid, else preview).
@@ -265,11 +291,13 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return undefined;
-    const ro = new ResizeObserver(([entry]) => setWidth(Math.round(entry.contentRect.width)));
+    const ro = new ResizeObserver(([entry]) => setBox({ w: Math.round(entry.contentRect.width), h: Math.round(entry.contentRect.height) }));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
+  // Inline: a whole A4 portrait page fits the frame. Full screen: wider pages for reading.
+  const width = expanded ? Math.min(box.w, 980) : Math.floor(Math.min(box.w, box.h / A4_RATIO));
   const renderedPages = pdf ? pdf.numPages : 0;
   const lockedFrom = meta ? meta.previewPages + 1 : 4;
   const lockedCount = meta && !access ? Math.max(0, meta.pageCount - meta.previewPages) : 0;
@@ -313,7 +341,7 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
   }
 
   return (
-    <div ref={wrapRef} className={styles.viewerWrap}>
+    <div ref={wrapRef} className={`${styles.viewerWrap} ${expanded ? styles.expanded : ''}`} role={expanded ? 'dialog' : undefined} aria-modal={expanded || undefined} aria-label={expanded ? 'Business proposal viewer' : undefined}>
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
           <span className={styles.docIcon} aria-hidden="true">
@@ -322,6 +350,19 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
           <span className={styles.docName}>Anoryx Business Proposal</span>
         </div>
         <div className={styles.toolbarRight}>
+          <button
+            type="button"
+            className={styles.iconBtn}
+            onClick={() => toggleExpanded(!expanded)}
+            aria-label={expanded ? 'Close full-screen viewer' : 'Open full-screen viewer'}
+            title={expanded ? 'Close (Esc)' : 'Open viewer'}
+          >
+            {expanded ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+            )}
+          </button>
           {meta && (
             <span className={styles.pageCounter} aria-live="polite">
               Page {Math.min(currentPage, meta.pageCount)} of {meta.pageCount}
@@ -345,7 +386,13 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
         </div>
       </div>
 
-      <div ref={scrollRef} className={styles.scroller} onScroll={onScroll} tabIndex={0} aria-label="Business proposal pages">
+      <div
+        ref={scrollRef}
+        className={styles.scroller}
+        onScroll={onScroll}
+        onClick={(e) => {
+          if (!expanded && e.target.closest('[data-page]')) toggleExpanded(true);
+        }} tabIndex={0} aria-label="Business proposal pages">
         {!pdf && (
           <div className={styles.loading}>
             <span className={styles.spinner} aria-hidden="true" />
@@ -354,12 +401,12 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
         )}
         {pdf &&
           Array.from({ length: renderedPages }, (_, i) => (
-            <PdfPage key={i} pdf={pdf} pageNumber={i + 1} width={width - 32} />
+            <PdfPage key={i} pdf={pdf} pageNumber={i + 1} width={width} />
           ))}
         {pdf && lockedCount > 0 && (
           <div ref={lockedRef} className={styles.lockedZone}>
             {Array.from({ length: lockedCount }, (_, i) => (
-              <LockedPage key={i} number={lockedFrom + i} />
+              <LockedPage key={i} number={lockedFrom + i} width={width} />
             ))}
           </div>
         )}

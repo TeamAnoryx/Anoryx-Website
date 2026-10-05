@@ -8,6 +8,56 @@
   border: 1px solid rgba(148, 163, 255, 0.18);
   box-shadow: 0 30px 80px rgba(4, 10, 30, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
   scroll-margin-top: calc(var(--navbar-height) + 16px);
+  /* Inline frame is sized to one A4 portrait page (+16px padding each side). */
+  --page-h: min(calc(100vh - var(--navbar-height) - 110px), 980px);
+  max-width: calc((var(--page-h) - 32px) / 1.414 + 32px);
+  margin: 0 auto;
+}
+
+/* Full-screen reader */
+.expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  max-width: none;
+  border-radius: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  animation: zoomIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.expanded .scroller {
+  flex: 1;
+  height: auto;
+  scroll-snap-type: none;
+}
+
+.expanded .page {
+  cursor: default;
+}
+
+@keyframes zoomIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 255, 0.3);
+  background: rgba(255, 255, 255, 0.06);
+  color: #E2E8F0;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.iconBtn:hover {
+  background: rgba(255, 255, 255, 0.16);
 }
 
 /* ── Toolbar ─────────────────────────────────────────────── */
@@ -15,7 +65,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   padding: 12px 16px;
   background: rgba(255, 255, 255, 0.04);
   border-bottom: 1px solid rgba(148, 163, 255, 0.14);
@@ -86,8 +137,10 @@
 
 /* ── Pages ───────────────────────────────────────────────── */
 .scroller {
-  height: min(78vh, 860px);
+  height: var(--page-h);
   overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  align-items: center;
   overscroll-behavior: contain;
   padding: 16px;
   display: flex;
@@ -108,6 +161,8 @@
   position: relative;
   width: 100%;
   flex-shrink: 0;
+  scroll-snap-align: center;
+  cursor: zoom-in;
   background: #fff;
   border-radius: 6px;
   overflow: hidden;
@@ -136,7 +191,9 @@
 .lockedZone {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 16px;
+  width: 100%;
 }
 
 .lockedPage {
@@ -248,6 +305,12 @@
   height: 140%;
   background: linear-gradient(180deg, rgba(14, 21, 40, 0) 0%, rgba(14, 21, 40, 0.85) 35%, #0E1528 70%);
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.lockPanelOpen::before {
+  opacity: 1;
 }
 
 .lockPanelInner {
@@ -453,8 +516,11 @@
 }
 
 @media (max-width: 767px) {
+  .viewerWrap {
+    max-width: none;
+  }
+
   .scroller {
-    height: 72vh;
     padding: 10px;
     gap: 10px;
   }
@@ -474,6 +540,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .expanded {
+    animation: none;
+  }
+
   .lockPanel,
   .toolbarBtn,
   .submit {
@@ -491,4 +561,9 @@
     animation: none;
     stroke-dashoffset: 0;
   }
+}
+
+/* Inline frame is narrow: keep the toolbar on one row. */
+.viewerWrap:not(.expanded) .docName {
+  display: none;
 }
