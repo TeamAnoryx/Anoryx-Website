@@ -843,7 +843,49 @@ button.signupLink {
     font-size: var(--font-size-small);
   }
 }
-/* ── Products dropdown: name + category + status pill ── */
+
+/* ── Products dropdown: wide panel, icon tile + name + category ── */
+.dropdownPanelWide {
+  min-width: 340px;
+  padding: var(--space-2);
+}
+
+.dropdownLinkRich {
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+}
+
+.dropdownLinkRich .dropdownLinkIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background-color: var(--color-secondary-light);
+  color: var(--color-secondary);
+}
+
+.dropdownLinkRich:hover .dropdownLinkIcon {
+  background-color: var(--color-secondary);
+  color: #fff;
+}
+
+.dropdownLinkSeparated {
+  margin-top: 6px;
+  position: relative;
+}
+
+.dropdownLinkSeparated::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+  background-color: var(--color-border-default);
+  opacity: 0.6;
+}
+
 .dropdownLinkBody {
   display: flex;
   flex-direction: column;
@@ -852,12 +894,14 @@ button.signupLink {
 }
 
 .dropdownLinkTitle {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
-  font-weight: var(--font-weight-medium);
+}
+
+.dropdownLinkRich:hover .dropdownLinkTitle {
+  color: var(--color-secondary);
 }
 
 .dropdownLinkDesc {
@@ -866,16 +910,9 @@ button.signupLink {
   color: var(--color-text-muted);
 }
 
-.dropdownStatus {
-  padding: 1px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 16px;
-  color: #7A4D00;
-  background: #FFF7E6;
-  border: 1px solid #FFE2A8;
-  white-space: nowrap;
+.navbarDark .dropdownLinkRich .dropdownLinkIcon {
+  background-color: rgba(30, 107, 255, 0.15);
+  color: #60A5FA;
 }
 
 .navbarDark .dropdownLinkTitle {
@@ -886,8 +923,15 @@ button.signupLink {
   color: #94A3B8;
 }
 
-.dropdownStatusEarly {
-  color: #006644;
-  background: #E3FCEF;
-  border-color: #ABF5D1;
+/* Mobile/tablet portrait: panels are inline, so drop the fixed width */
+@media (max-width: 1024px) and (orientation: portrait) {
+  .dropdownPanelWide {
+    min-width: unset;
+    padding: 0;
+  }
+
+  .dropdownLinkRich {
+    border-radius: 0;
+    padding: 10px var(--space-4) 10px var(--space-6);
+  }
 }

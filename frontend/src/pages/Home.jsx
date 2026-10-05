@@ -171,7 +171,8 @@ function Home() {
             <div className={styles.heroLeft}>
               {/* Headline = HERO_HEADLINE in data/products.js ("The secure operating layer for enterprise AI."). */}
               <h1 className={styles.heroHeadline}>
-                <span className={styles.heroSmall}>The secure operating layer for</span>
+                <span className={styles.heroSmall}>The secure operating</span>
+                <span className={styles.heroSmall}>layer for</span>
                 <span className={styles.heroAccent}>ENTERPRISE AI.</span>
               </h1>
               <p className={styles.heroSlogan}>

@@ -12,7 +12,7 @@ import logo from '../../assets/logo.png';
 import styles from './Navbar.module.css';
 import { useAuth } from '../../context/AuthContext.jsx';
 import ProductIcon from '../Ecosystem/ProductIcon.jsx';
-import { PRODUCTS, PLATFORM_NAME, STATUS } from '../../data/products.js';
+import { PRODUCTS, PLATFORM_NAME } from '../../data/products.js';
 
 /* Shared icon props for dropdown row icons */
 const iconProps = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
@@ -21,15 +21,15 @@ const iconProps = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', s
 const DROPDOWNS = [
   {
     label: 'Products',
+    wide: true,
     items: [
       ...PRODUCTS.map((p) => ({
         text: p.name,
         desc: p.category,
-        status: p.status,
         to: `/products/${p.slug}`,
         icon: <ProductIcon name={p.icon} size={18} />,
       })),
-      { text: `The ${PLATFORM_NAME}`, desc: 'How the products connect', to: '/products', icon: <svg {...iconProps}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="m3.27 6.96 8 4.04M12 19.08l8-4.04" /></svg> },
+      { text: `The ${PLATFORM_NAME}`, desc: 'How the four products connect', to: '/products', separator: true, icon: <svg {...iconProps}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="m3.27 6.96 8 4.04M12 19.08l8-4.04" /></svg> },
     ],
   },
   {
@@ -224,26 +224,19 @@ function Navbar() {
 
               {/* Dropdown panel */}
               {openDropdown === dropdown.label && (
-                <div className={styles.dropdownPanel}>
+                <div className={`${styles.dropdownPanel} ${dropdown.wide ? styles.dropdownPanelWide : ''}`}>
                   {dropdown.items.map((item) => (
                     <Link
                       key={item.text}
                       to={item.to}
-                      className={styles.dropdownLink}
+                      className={`${styles.dropdownLink} ${item.desc ? styles.dropdownLinkRich : ''} ${item.separator ? styles.dropdownLinkSeparated : ''}`}
                       onClick={closeMobile}
                     >
                       <span className={styles.dropdownLinkIcon} aria-hidden="true">{item.icon}</span>
-                      {item.desc || item.status ? (
+                      {item.desc ? (
                         <span className={styles.dropdownLinkBody}>
-                          <span className={styles.dropdownLinkTitle}>
-                            {item.text}
-                            {item.status && (
-                              <span className={`${styles.dropdownStatus} ${item.status === STATUS.EARLY_ACCESS ? styles.dropdownStatusEarly : ''}`}>
-                                {item.status}
-                              </span>
-                            )}
-                          </span>
-                          {item.desc && <span className={styles.dropdownLinkDesc}>{item.desc}</span>}
+                          <span className={styles.dropdownLinkTitle}>{item.text}</span>
+                          <span className={styles.dropdownLinkDesc}>{item.desc}</span>
                         </span>
                       ) : (
                         item.text
