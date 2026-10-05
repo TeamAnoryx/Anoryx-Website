@@ -190,18 +190,19 @@ export default function FoundersNote() {
                     <th>Expected Outcome</th>
                   </tr>
                 </thead>
+                {/* AFFU: keep / remove? Roadmap includes user targets and fundraising, which the products brief keeps off the public site. Anoryx Delta and the Orchestration Layer are not in this roadmap yet. */}
                 <tbody>
                   <tr>
                     <td data-label="Timeline"><span className={styles.timelineBadge}><span className={styles.timelineIcon} aria-hidden>1</span> Year 1</span></td>
-                    <td data-label="Focus Area">Rendly as main product; PII Sentinel (sell in Year 1 only)</td>
-                    <td data-label="Strategic Objective">Develop and launch Rendly; gain 100k users; raise initial investments. Launch and sell PII Sentinel in Year 1.</td>
-                    <td data-label="Expected Outcome">Rendly live with 100k users; initial funding secured; PII Sentinel in market.</td>
+                    <td data-label="Focus Area">Anoryx Rendly as main product; Anoryx Sentinel (sell in Year 1 only)</td>
+                    <td data-label="Strategic Objective">Develop and launch Rendly; gain 100k users; raise initial investments. Launch and sell Sentinel in Year 1.</td>
+                    <td data-label="Expected Outcome">Rendly live with 100k users; initial funding secured; Sentinel in market.</td>
                   </tr>
                   <tr>
                     <td data-label="Timeline"><span className={styles.timelineBadge}><span className={styles.timelineIcon} aria-hidden>2</span> Year 2</span></td>
-                    <td data-label="Focus Area">PII Sentinel expansion; expanding Rendly; developing B4Labs</td>
-                    <td data-label="Strategic Objective">Expand PII Sentinel; scale Rendly; develop B4Labs simultaneously.</td>
-                    <td data-label="Expected Outcome">Multi-product traction; B4Labs in active development; stronger Rendly and PII Sentinel presence.</td>
+                    <td data-label="Focus Area">Sentinel expansion; expanding Rendly; developing B4Labs</td>
+                    <td data-label="Strategic Objective">Expand Sentinel; scale Rendly; develop B4Labs simultaneously.</td>
+                    <td data-label="Expected Outcome">Multi-product traction; B4Labs in active development; stronger Rendly and Sentinel presence.</td>
                   </tr>
                   <tr>
                     <td data-label="Timeline"><span className={styles.timelineBadge}><span className={styles.timelineIcon} aria-hidden>5</span> Year 5</span></td>

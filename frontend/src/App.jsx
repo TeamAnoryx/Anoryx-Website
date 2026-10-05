@@ -1,4 +1,5 @@
-import { Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
 import Navbar from './components/Navbar/Navbar.jsx';
 import Footer from './components/Footer/Footer.jsx';
@@ -19,11 +20,22 @@ import CompanyFoundersNote from './pages/company/FoundersNote.jsx';
 import CompanyVisionMission from './pages/company/VisionMission.jsx';
 import Contact from './pages/contact/Contact.jsx';
 import Products from './pages/products/Products.jsx';
+import ProductDetail from './pages/products/ProductDetail.jsx';
+
+/* Reset scroll on route change; in-page anchors (#hash) are handled by each page. */
+function ScrollToTop() {
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (!hash) window.scrollTo(0, 0);
+  }, [pathname, hash]);
+  return null;
+}
 
 function App() {
   return (
     <AuthProvider>
       <div className="appLayout">
+        <ScrollToTop />
         <Navbar />
       <main className="appMain">
         <Routes>
@@ -44,6 +56,7 @@ function App() {
           <Route path="/company/vision-mission" element={<CompanyVisionMission />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/products" element={<Products />} />
+          <Route path="/products/:slug" element={<ProductDetail />} />
         </Routes>
       </main>
         <Footer />

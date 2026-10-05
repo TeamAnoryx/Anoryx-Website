@@ -408,7 +408,7 @@ export default function StripeSection() {
 
       <div className={styles.statsRow}>
         {[
-          { num: "3",      label: "intelligent products\nin ecosystem" },
+          { num: "4",      label: "products in the\nAnoryx EcoSystem" },
           { num: "4",      label: "patents filed\nfor AI privacy tech" },
           { num: "5+",     label: "industry sectors\nserved globally" },
           { num: "100%",   label: "privacy-first\nengineering approach" },

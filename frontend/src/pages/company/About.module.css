@@ -2102,3 +2102,11 @@
     grid-template-columns: 1fr;
   }
 }
+
+.productCardOrange {
+  background: linear-gradient(165deg, #FFF3E0 0%, #FFEFD9 50%, #FFF6EA 100%);
+}
+
+.productCardTeal {
+  background: linear-gradient(165deg, #E0F7FA 0%, #DDF4F8 50%, #EAFAFC 100%);
+}

@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './About.module.css';
+import { PRODUCTS, PLATFORM_NAME } from '../../data/products.js';
+
+const PRODUCT_CARD_CLASS = { blue: 'productCardBlue', purple: 'productCardPurple', orange: 'productCardOrange', teal: 'productCardTeal' };
 import founderImg from '../../assets/founder.jpg';
 import farhanaImg from '../../assets/farhana.jpg';
 
@@ -115,7 +118,7 @@ export default function About() {
             </div>
             <div className={styles.whoProse}>
               <p>
-                The company exists to address a critical gap: digital transformation has outpaced the world&apos;s ability to secure data, preserve privacy, manage intelligent automation responsibly, and create trusted digital ecosystems. Anoryx researches, engineers, and deploys advanced AI-driven software systems, privacy protection platforms, autonomous workflows, and digital ecosystems that are scalable, secure, and globally competitive.
+                The company exists to address a critical gap: digital transformation has outpaced the world&apos;s ability to secure data, preserve privacy, manage intelligent automation responsibly, and create trusted digital ecosystems. Anoryx researches, engineers, and deploys advanced AI-driven software systems, privacy protection platforms, autonomous workflows, and digital ecosystems that are scalable, secure, and globally competitive. Today the company is building the {PLATFORM_NAME}: one integrated stack for AI security, AI cost governance and team collaboration, connected by a central orchestration layer.
               </p>
               <p>
                 We integrate AI, privacy, blockchain, and autonomous workflows into cohesive systems designed for long-term global relevance—rather than addressing intelligence, security, or platforms in isolation.
@@ -162,13 +165,13 @@ export default function About() {
               <div className={`${styles.timelineItem} ${inView.origin ? styles.timelineVisible : ''}`} style={{ transitionDelay: '0.4s' }}>
                 <span className={styles.timelineIcon} aria-hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg></span>
                 <div className={styles.timelineContent}>
-                  <strong>PII Sentinel</strong> — AI-powered data privacy and protection platform. Enterprise-grade scalable solution development completed; currently in post-development and enterprise readiness stage. Four patents filed (pending).
+                  <strong>Anoryx Sentinel</strong> — zero-trust AI gateway that detects and redacts sensitive data before it reaches external models. Grew out of Anoryx&apos;s earlier PII-protection work; now in early access. Four patents filed (pending).
                 </div>
               </div>
               <div className={`${styles.timelineItem} ${inView.origin ? styles.timelineVisible : ''}`} style={{ transitionDelay: '0.5s' }}>
                 <span className={styles.timelineIcon} aria-hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></svg></span>
                 <div className={styles.timelineContent}>
-                  <strong>Rendly</strong> — Next-generation professional and social digital platform. Core platform and features in active development; focused on digital identity ecosystem and scalable backend architecture.
+                  <strong>Anoryx Rendly</strong> — secure enterprise collaboration: intent-driven matching, encrypted chat and video. In active development, alongside Anoryx Delta (AI FinOps) and the Anoryx Orchestration Layer.
                 </div>
               </div>
             </div>
@@ -363,28 +366,19 @@ export default function About() {
               <span className={styles.productsSectionIcon} aria-hidden>
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="7.5 4.21 12 6.81 16.5 4.21" /><polyline points="7.5 19.79 7.5 14.6 3 12" /><polyline points="21 8 12 12 3 8" /><polyline points="3 16 12 20 21 16" /><polyline points="16.5 19.79 16.5 14.6 21 12" /><polyline points="7.5 4.21 7.5 9.4 3 12" /><polyline points="16.5 4.21 16.5 9.4 21 12" /><polyline points="12 6.81 12 12 16.5 14.6" /><polyline points="12 12 12 20 7.5 17.4" /><polyline points="12 12 7.5 9.4 7.5 14.6" /><polyline points="12 12 16.5 14.6 16.5 9.4" /></svg>
               </span>
-              <h2 className={styles.productsSectionHeading}>Products Developed</h2>
+              <h2 className={styles.productsSectionHeading}>The {PLATFORM_NAME}</h2>
             </div>
             <div className={styles.productsGrid}>
-              <Link to="/products#pii-sentinel" className={`${styles.productCard} ${styles.productCardBlue}`}>
-                <span className={styles.productCardIcon} aria-hidden><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg></span>
-                <span className={styles.productCardLabel}>Privacy & Security</span>
-                <h3 className={styles.productCardTitle}>PII Sentinel</h3>
-                <p className={styles.productCardBody}>
-                  AI-powered data privacy and protection platform for PII detection, monitoring, and compliance automation. Targets enterprises, FinTech, healthcare, SaaS, and government digital systems. Enterprise-grade development completed; in post-development and enterprise readiness stage.
-                </p>
-                <span className={styles.productCardLink}>View product →</span>
-              </Link>
-              <Link to="/products#rendly" className={`${styles.productCard} ${styles.productCardGreen}`}>
-                <span className={styles.productCardIcon} aria-hidden><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></svg></span>
-                <span className={styles.productCardLabel}>Digital Platform</span>
-                <h3 className={styles.productCardTitle}>Rendly</h3>
-                <p className={styles.productCardBody}>
-                  Next-generation professional and social digital platform—digital identity ecosystem, collaboration and discovery tools, reputation and opportunity matching. For students, professionals, creators, and the global digital workforce. Active development in progress.
-                </p>
-                <span className={styles.productCardLink}>Explore Rendly →</span>
-              </Link>
-              <Link to="/products#b4labs" className={`${styles.productCard} ${styles.productCardPurple}`}>
+              {PRODUCTS.map((p) => (
+                <Link key={p.slug} to={`/products/${p.slug}`} className={`${styles.productCard} ${styles[PRODUCT_CARD_CLASS[p.accent]] || ''}`}>
+                  <span className={styles.productCardLabel}>{p.category} · {p.status}</span>
+                  <h3 className={styles.productCardTitle}>{p.name}</h3>
+                  <p className={styles.productCardBody}>{p.tagline}</p>
+                  <span className={styles.productCardLink}>View product →</span>
+                </Link>
+              ))}
+              {/* AFFU: keep / remove? B4Labs is a research lab, not part of the EcoSystem product line. */}
+              <Link to="/products#research" className={`${styles.productCard} ${styles.productCardPurple}`}>
                 <span className={styles.productCardIcon} aria-hidden><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></svg></span>
                 <span className={styles.productCardLabel}>AI Research</span>
                 <h3 className={styles.productCardTitle}>B4LABS</h3>

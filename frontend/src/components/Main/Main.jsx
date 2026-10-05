@@ -105,7 +105,7 @@ function Main() {
       {/* Featured Content Section */}
       <div className={styles.featuredSection}>
         <div className={styles.featuredBox}>
-          {/* Left - n8n Workflow Builder */}
+          {/* Left - n8n Workflow Builder. AFFU: keep / remove? Pre-EcoSystem workflow-automation visual. */}
           <div className={styles.featuredLeft}>
             {/* Status Badges - Top Right of Workflow Area */}
             <div className={styles.statusBadgesRow}>
@@ -547,7 +547,7 @@ function Main() {
             <h3 className={styles.featureCardTitle}>Stay Secure While You Scale</h3>
             <p className={styles.featureCardText}>Protect sensitive data, monitor identity exposure, and maintain compliance automatically with AI-powered privacy and security intelligence built for modern digital infrastructure.</p>
           </div>
-          <Link to="/products#pii-sentinel" className={styles.featureCardLink}>Explore Privacy Intelligence →</Link>
+          <Link to="/products/sentinel" className={styles.featureCardLink}>Explore Anoryx Sentinel →</Link>
         </div>
       </div>
 

@@ -45,7 +45,7 @@ const differentiators = [
   {
     num: '04',
     title: 'Multi-Product Innovation',
-    desc: 'Three products, one technology foundation. PII Sentinel, B4Labs, and Rendly share a common intelligence backbone.',
+    desc: 'Four products, one platform. Anoryx Sentinel, Delta and Rendly are connected by the Anoryx Orchestration Layer.',
     iconClass: 'iconOrange',
     cardClass: 'card4',
     icon: (

@@ -1,0 +1,425 @@
+/**
+ * Ecosystem — small shared widgets for the Anoryx EcoSystem (status pill, product
+ * card details, hub diagram, signature loop, product chips). Page layout comes from
+ * the existing page stylesheets (Products.module.css, Solutions.module.css).
+ */
+
+/* ── Accents (per product) ─────────────────────────────────── */
+.accent_blue { --accent: #0052CC; --accent-text: #0052CC; --accent-soft: #DEEBFF; }
+.accent_purple { --accent: #6554C0; --accent-text: #5243AA; --accent-soft: #EAE6FF; }
+.accent_orange { --accent: #FF8B00; --accent-text: #A35400; --accent-soft: #FFF0DB; }
+.accent_teal { --accent: #00A3BF; --accent-text: #00687A; --accent-soft: #E0F7FA; }
+
+/* ── Status pill ───────────────────────────────────────────── */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.pill::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.pillEarly {
+  color: #006644;
+  background: #E3FCEF;
+  border: 1px solid #ABF5D1;
+}
+
+.pillDev {
+  color: #7A4D00;
+  background: #FFF7E6;
+  border: 1px solid #FFE2A8;
+}
+
+/* ── Product card details (shell is .overviewCard from Products.module.css) ── */
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  border-top: 3px solid var(--accent, var(--color-secondary));
+}
+
+.cardHub.cardHub {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #FFFFFF 0%, var(--accent-soft) 100%);
+  border-color: var(--accent);
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.cardIcon.cardIcon {
+  color: var(--accent-text, var(--color-secondary));
+  background: var(--accent-soft, var(--color-secondary-light));
+}
+
+.cardCategory {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-text, var(--color-secondary));
+  margin: -4px 0 var(--space-3);
+}
+
+.hubNote {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  border: 1px dashed var(--accent);
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin: 0 0 var(--space-3);
+}
+
+.cardCaps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-4);
+  display: grid;
+  gap: 6px;
+}
+
+.cardCaps li {
+  position: relative;
+  padding-left: 22px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+}
+
+.cardCaps li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 6px;
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid var(--accent, var(--color-secondary));
+  border-bottom: 2px solid var(--accent, var(--color-secondary));
+  transform: rotate(-45deg);
+}
+
+.cardLink {
+  margin-top: auto;
+  align-self: flex-start;
+  color: var(--accent-text, var(--color-secondary));
+}
+
+.cardLink:focus-visible,
+.chip:focus-visible {
+  outline: 3px solid #4C9AFF;
+  outline-offset: 2px;
+}
+
+/* ── Ecosystem diagram ─────────────────────────────────────── */
+.diagram {
+  margin: 0 auto;
+  width: 100%;
+  max-width: 640px;
+}
+
+.diagramCompact {
+  max-width: 460px;
+}
+
+.diagramSvg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: var(--font-family);
+}
+
+.diagramLink {
+  stroke: #7A869A;
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+  animation: ecoFlow 1.6s linear infinite;
+}
+
+@keyframes ecoFlow {
+  to { stroke-dashoffset: -22; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diagramLink { animation: none; }
+}
+
+.diagramArrowHead {
+  fill: #7A869A;
+}
+
+.diagramLabel {
+  font-size: 13px;
+  font-weight: 500;
+  fill: var(--color-text-secondary);
+}
+
+.diagramHub rect {
+  fill: #E0F7FA;
+  stroke: #00A3BF;
+  stroke-width: 2;
+}
+
+.diagramHubTitle {
+  font-family: var(--font-family-heading);
+  font-size: 18px;
+  font-weight: 700;
+  fill: #00687A;
+}
+
+.diagramNode rect {
+  fill: #fff;
+  stroke: var(--accent, #0052CC);
+  stroke-width: 2;
+}
+
+.node_blue { --accent: #0052CC; --accent-text: #0052CC; }
+.node_purple { --accent: #6554C0; --accent-text: #5243AA; }
+.node_orange { --accent: #FF8B00; --accent-text: #A35400; }
+
+.diagramNodeTitle {
+  font-family: var(--font-family-heading);
+  font-size: 17px;
+  font-weight: 700;
+  fill: var(--accent-text, var(--color-text-primary));
+}
+
+.diagramNodeSub {
+  font-size: 11px;
+  fill: var(--color-text-secondary);
+}
+
+.diagramCaption {
+  margin-top: var(--space-4);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  text-align: left;
+}
+
+.diagramCaption ul {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+
+.diagramCaption a {
+  color: var(--color-secondary);
+  font-weight: 600;
+}
+
+/* ── Signature loop stepper ────────────────────────────────── */
+.loopHeading {
+  font-family: var(--font-family-heading);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: var(--space-6) 0 var(--space-4);
+}
+
+.loop {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-4);
+  text-align: left;
+}
+
+.loopStep {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--color-border-default);
+  border-top: 3px solid var(--accent, #7A869A);
+  border-radius: 12px;
+  padding: var(--space-3);
+  box-shadow: 0 2px 12px rgba(9, 30, 66, 0.06);
+}
+
+.loopStep:not(:last-child)::after {
+  content: '→';
+  position: absolute;
+  right: -18px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #7A869A;
+  font-weight: 700;
+}
+
+.loopNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-secondary) 0%, #0065FF 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  margin-right: 8px;
+}
+
+.loopProduct {
+  font-family: var(--font-family-heading);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--accent-text, var(--color-text-primary));
+  text-decoration: none;
+}
+
+a.loopProduct:hover {
+  text-decoration: underline;
+}
+
+.loopText {
+  margin: var(--space-2) 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+/* ── Chips & strips ────────────────────────────────────────── */
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--accent-text, var(--color-text-primary));
+  background: var(--accent-soft, #fff);
+  border: 1px solid var(--accent, var(--color-border-default));
+}
+
+a.chip:hover {
+  text-decoration: underline;
+}
+
+.deployStrip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.deployStrip li {
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--color-border-default);
+  box-shadow: 0 2px 8px rgba(9, 30, 66, 0.05);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.anchorTarget {
+  scroll-margin-top: calc(var(--navbar-height) + 16px);
+}
+
+.problemList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.problemList li {
+  background: #fff;
+  border: 1px solid var(--color-border-default);
+  border-left: 4px solid var(--accent, var(--color-secondary));
+  border-radius: 10px;
+  padding: var(--space-3) var(--space-4);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.video {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #091E42;
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 1023px) {
+  .grid2 { grid-template-columns: 1fr; }
+  .loop { grid-template-columns: 1fr; gap: var(--space-5); }
+  .loopStep:not(:last-child)::after {
+    content: '↓';
+    right: auto;
+    left: 50%;
+    top: auto;
+    bottom: -24px;
+    transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 767px) {
+  .grid2,
+  .problemList {
+    grid-template-columns: 1fr;
+  }
+  .cardHub { grid-column: auto; }
+}
+
+/* Three-up variant of .valueGrid (doubled selector beats the page stylesheet's 4-up rule). */
+@media (min-width: 1024px) {
+  .valueThree.valueThree { grid-template-columns: repeat(3, 1fr); }
+}

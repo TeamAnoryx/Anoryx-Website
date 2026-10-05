@@ -7,7 +7,7 @@ const matrixIconProps = { width: 24, height: 24, viewBox: '0 0 24 24', fill: 'no
 
 const INDUSTRIES = [
   { id: 'saas', name: 'SaaS Platforms', desc: 'Scalable intelligence infrastructure for software-as-a-service platforms. Real-time signal processing, adaptive automation, and enterprise-grade reliability.', glow: 'blue', icon: <svg {...matrixIconProps}><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" /></svg> },
-  { id: 'finance', name: 'Financial Systems', desc: 'Secure, compliant intelligence for financial infrastructure. Decision verification, audit trails, and regulatory-grade execution.', glow: 'cyan', icon: <svg {...matrixIconProps}><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg> },
+  { id: 'finance', name: 'Financial Systems', desc: 'Secure, audit-ready intelligence for financial infrastructure. Decision verification, audit trails, and regulatory-grade execution.', glow: 'cyan', icon: <svg {...matrixIconProps}><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg> },
   { id: 'healthcare', name: 'Healthcare Infrastructure', desc: 'Privacy-first intelligence for healthcare systems. HIPAA-aligned data handling, clinical workflow automation, and secure orchestration.', glow: 'teal', icon: <svg {...matrixIconProps}><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg> },
   { id: 'enterprise', name: 'Enterprise IT & Cloud', desc: 'Enterprise-grade intelligence across hybrid and multi-cloud environments. Orchestration, observability, and autonomous operations.', glow: 'indigo', icon: <svg {...matrixIconProps}><ellipse cx="12" cy="16" rx="6" ry="4" /><path d="M12 8v4M8 14l4-4 4 4" /><path d="M4 10a8 8 0 0 1 16 0" /></svg> },
   { id: 'privacy', name: 'Privacy & Compliance Systems', desc: 'Intelligence infrastructure built for privacy and compliance. PII protection, consent management, and regulatory automation.', glow: 'white', icon: <svg {...matrixIconProps}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg> },
@@ -19,7 +19,7 @@ const USE_CASES = [
   { tag: 'Automation', title: 'Automating operational workflows using agent systems', body: 'Autonomous agents orchestrated by the Anoryx platform execute complex operational workflows—provisioning, monitoring, incident response—with human oversight and full auditability.' },
   { tag: 'Infrastructure', title: 'Monitoring enterprise infrastructure autonomously', body: 'Real-time signal ingestion and cognitive analysis drive autonomous monitoring and optimization of enterprise infrastructure, reducing mean time to detection and resolution.' },
   { tag: 'Orchestration', title: 'Coordinating multi-system enterprise operations', body: 'Intelligence layers coordinate across CRM, ERP, and custom systems to maintain consistency, enforce policies, and optimize cross-system workflows.' },
-  { tag: 'Security', title: 'Protecting sensitive data using autonomous analysis', body: 'Continuous autonomous analysis of data classification, access patterns, and policy enforcement ensures sensitive data remains protected and compliant across the enterprise.' },
+  { tag: 'Security', title: 'Protecting sensitive data using autonomous analysis', body: 'Continuous autonomous analysis of data classification, access patterns, and policy enforcement ensures sensitive data remains protected and auditable across the enterprise.' },
 ];
 
 const iconProps = { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };

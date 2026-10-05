@@ -165,7 +165,7 @@ export default function VisionMission() {
                 </span>
                 <h3 className={styles.missionCardTitle}>Enabling Privacy-First Intelligent Systems</h3>
                 <p className={styles.missionCardBody}>
-                  We focus on privacy infrastructure that protects sensitive data while enabling intelligent automation. Products like PII Sentinel deliver AI-powered PII detection, data leak monitoring, and compliance automation—treating data as sensitive infrastructure and ensuring privacy, protection, and controlled intelligence are core design principles.
+                  We focus on privacy infrastructure that protects sensitive data while enabling intelligent automation. Anoryx Sentinel detects and redacts PII and secrets before they reach external AI models, and writes a tamper-evident audit trail—treating data as sensitive infrastructure and ensuring privacy, protection, and controlled intelligence are core design principles.
                 </p>
               </div>
               <div className={styles.missionCard} style={{ transitionDelay: '0.3s' }}>

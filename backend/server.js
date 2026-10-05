@@ -276,10 +276,28 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
   }
 });
 
+// Allowed "Product of interest" values from the contact form (slugs in frontend/src/data/products.js)
+const PRODUCT_INTEREST_LABELS = {
+  sentinel: 'Anoryx Sentinel',
+  delta: 'Anoryx Delta',
+  rendly: 'Anoryx Rendly',
+  orchestration: 'Anoryx Orchestration Layer',
+  ecosystem: 'The full Anoryx EcoSystem',
+  other: 'Other',
+};
+
+const escapeHtml = (value) =>
+  String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 // POST /api/contact — send contact form as email
 app.post('/api/contact', async (req, res) => {
   try {
-    const { fullName, workEmail, companyName, subject, message } = req.body || {};
+    const { fullName, workEmail, companyName, subject, message, productInterest } = req.body || {};
 
     if (!fullName || !workEmail || !message) {
       return res.status(400).json({
@@ -297,26 +315,29 @@ app.post('/api/contact', async (req, res) => {
       });
     }
 
-    const subjectLabel = { sales: 'Sales & Enterprise', engineering: 'Technical Support', partnerships: 'Partnerships', general: 'General Inquiry' }[subject] || subject || 'General Inquiry';
+    const subjectLabel = { 'early-access': 'Early access / design partner', sales: 'Sales & Enterprise', engineering: 'Technical Support', partnerships: 'Partnerships', general: 'General Inquiry' }[subject] || 'General Inquiry';
+    const productLabel = PRODUCT_INTEREST_LABELS[productInterest] || '';
 
     const mailOptions = {
       from: process.env.SMTP_FROM || CONTACT_EMAIL,
       to: CONTACT_EMAIL,
       replyTo: workEmail,
-      subject: `[Anoryx Contact] ${subjectLabel} — ${fullName}`,
+      subject: `[Anoryx Contact] ${subjectLabel}${productLabel ? ` (${productLabel})` : ''} — ${String(fullName).replace(/[\r\n]+/g, ' ')}`,
       text: [
         `From: ${fullName} <${workEmail}>`,
         companyName ? `Company: ${companyName}` : '',
+        productLabel ? `Product of interest: ${productLabel}` : '',
         `Subject: ${subjectLabel}`,
         '',
         message,
       ].filter(Boolean).join('\n'),
       html: [
-        `<p><strong>From:</strong> ${fullName} &lt;<a href="mailto:${workEmail}">${workEmail}</a>&gt;</p>`,
-        companyName ? `<p><strong>Company:</strong> ${companyName}</p>` : '',
-        `<p><strong>Topic:</strong> ${subjectLabel}</p>`,
+        `<p><strong>From:</strong> ${escapeHtml(fullName)} &lt;<a href="mailto:${escapeHtml(workEmail)}">${escapeHtml(workEmail)}</a>&gt;</p>`,
+        companyName ? `<p><strong>Company:</strong> ${escapeHtml(companyName)}</p>` : '',
+        productLabel ? `<p><strong>Product of interest:</strong> ${escapeHtml(productLabel)}</p>` : '',
+        `<p><strong>Topic:</strong> ${escapeHtml(subjectLabel)}</p>`,
         '<hr/>',
-        `<pre style="white-space:pre-wrap;font-family:inherit;">${message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`,
+        `<pre style="white-space:pre-wrap;font-family:inherit;">${escapeHtml(message)}</pre>`,
       ].filter(Boolean).join(''),
     };
 

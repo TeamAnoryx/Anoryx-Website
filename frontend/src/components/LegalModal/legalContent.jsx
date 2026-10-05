@@ -20,7 +20,7 @@ export function PRIVACY_CONTENT() {
       <h3>2.2 Technical and Usage Information</h3>
       <p>We automatically collect limited technical information when you interact with our website, including: IP address, browser type, device type, operating system, pages visited, interaction timestamps, and referral sources. This information helps us improve platform reliability, performance, and security.</p>
       <h3>2.3 Enterprise and Platform Data</h3>
-      <p>When customers use Anoryx products such as PII Sentinel or Rendly, enterprise data may be processed in accordance with customer agreements. Anoryx processes such data only to provide contracted services and does not use customer data for unrelated purposes.</p>
+      <p>When customers use Anoryx products such as Anoryx Sentinel or Anoryx Rendly, enterprise data may be processed in accordance with customer agreements. Anoryx processes such data only to provide contracted services and does not use customer data for unrelated purposes.</p>
 
       <h2>3. How We Use Information</h2>
       <p>We use collected information solely for legitimate business purposes, including: providing and maintaining our products and services; responding to inquiries and customer support requests; improving system performance, reliability, and functionality; ensuring platform security and preventing unauthorized access; communicating with customers and partners; and complying with legal and regulatory obligations. We do not sell personal data to third parties.</p>
@@ -29,7 +29,7 @@ export function PRIVACY_CONTENT() {
       <p>Anoryx implements technical and organizational safeguards designed to protect information against unauthorized access, disclosure, alteration, or destruction. Security measures include: secure infrastructure deployment, access control mechanisms, encryption of sensitive data where applicable, network security protections, and system monitoring and threat detection. We continuously evaluate and improve our security practices.</p>
 
       <h2>5. Data Processing and Privacy-First Architecture</h2>
-      <p>Anoryx designs its systems using privacy-first architecture principles. Products such as PII Sentinel are specifically designed to detect and protect sensitive information. Anoryx processes only the data required to operate its services and does not access customer data beyond what is necessary to provide functionality.</p>
+      <p>Anoryx designs its systems using privacy-first architecture principles. Products such as Anoryx Sentinel are specifically designed to detect and protect sensitive information. Anoryx processes only the data required to operate its services and does not access customer data beyond what is necessary to provide functionality.</p>
 
       <h2>6. Data Sharing and Disclosure</h2>
       <p>Anoryx does not sell, rent, or trade personal information. We may share information only when required by law or legal process; to protect the security, rights, or safety of Anoryx, its customers, or others; or with trusted service providers assisting in infrastructure or operations under strict confidentiality. All third-party service providers are required to maintain data confidentiality and security.</p>
@@ -80,7 +80,7 @@ export function TERMS_CONTENT() {
       <p>Anoryx reserves the right to modify, suspend, or discontinue services at any time without liability. We continuously improve our products and infrastructure.</p>
 
       <h2>6. Enterprise Service Agreements</h2>
-      <p>Use of enterprise products such as PII Sentinel and Rendly may be governed by separate contractual agreements. Enterprise agreements take precedence over these general terms.</p>
+      <p>Use of enterprise products such as Anoryx Sentinel and Anoryx Rendly may be governed by separate contractual agreements. Enterprise agreements take precedence over these general terms.</p>
 
       <h2>7. Limitation of Liability</h2>
       <p>To the maximum extent permitted by law, Anoryx shall not be liable for: indirect or consequential damages; loss of business, revenue, or data; or service interruptions. Services are provided on an “as-is” and “as-available” basis.</p>

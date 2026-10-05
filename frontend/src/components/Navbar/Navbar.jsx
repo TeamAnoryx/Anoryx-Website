@@ -3,7 +3,7 @@
  *
  * Jira-inspired top navigation bar.
  * Left: logo box + animated brand name
- * Right: nav items (Platform, Solutions, Company dropdowns + Contact link) — collapses to hamburger on mobile/tablet
+ * Right: nav items (Products, Solutions, Platform, Company dropdowns + Contact link) — collapses to hamburger on mobile/tablet
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -11,12 +11,35 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.png';
 import styles from './Navbar.module.css';
 import { useAuth } from '../../context/AuthContext.jsx';
+import ProductIcon from '../Ecosystem/ProductIcon.jsx';
+import { PRODUCTS, PLATFORM_NAME, STATUS } from '../../data/products.js';
 
 /* Shared icon props for dropdown row icons */
 const iconProps = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
 
-/* Platform company architecture: Platform, Solutions, Company, Contact */
+/* Navigation: Products (from products.js), Solutions, Platform, Company, Contact */
 const DROPDOWNS = [
+  {
+    label: 'Products',
+    items: [
+      ...PRODUCTS.map((p) => ({
+        text: p.name,
+        desc: p.category,
+        status: p.status,
+        to: `/products/${p.slug}`,
+        icon: <ProductIcon name={p.icon} size={18} />,
+      })),
+      { text: `The ${PLATFORM_NAME}`, desc: 'How the products connect', to: '/products', icon: <svg {...iconProps}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="m3.27 6.96 8 4.04M12 19.08l8-4.04" /></svg> },
+    ],
+  },
+  {
+    label: 'Solutions',
+    items: [
+      { text: 'All Solutions', to: '/solutions', icon: <svg {...iconProps}><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /></svg> },
+      { text: 'Enterprise Automation', to: '/solutions/enterprise-automation', icon: <svg {...iconProps}><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><path d="M10 6h4M6 14v-4M18 10h-4" /></svg> },
+      { text: 'Industry Applications', to: '/solutions/industry-applications', icon: <svg {...iconProps}><path d="M3 21h18" /><path d="M5 21V7l8-4v18" /><path d="M19 21V11l-6-4" /><path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01" /></svg> },
+    ],
+  },
   {
     label: 'Platform',
     items: [
@@ -25,15 +48,6 @@ const DROPDOWNS = [
       { text: 'Intelligence Core', to: '/platform/intelligence-core', icon: <svg {...iconProps}><path d="M12 5a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" /><path d="M12 13c-2.5 0-4.5 1.5-5.5 4 1 2.5 3 4 5.5 4s4.5-1.5 5.5-4c-1-2.5-3-4-5.5-4z" /><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" /></svg> },
       { text: 'Autonomous Agent System', to: '/platform/autonomous-agent-system', icon: <svg {...iconProps}><rect x="4" y="8" width="16" height="12" rx="2" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /><circle cx="12" cy="14" r="1.5" /></svg> },
       { text: 'Security & Trust Architecture', to: '/platform/security-trust', icon: <svg {...iconProps}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg> },
-    ],
-  },
-  {
-    label: 'Solutions',
-    items: [
-      { text: 'Solutions', to: '/solutions', icon: <svg {...iconProps}><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /></svg> },
-      { text: 'Enterprise Automation', to: '/solutions/enterprise-automation', icon: <svg {...iconProps}><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><path d="M10 6h4M6 14v-4M18 10h-4" /></svg> },
-      { text: 'Products', to: '/products', icon: <svg {...iconProps}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="m3.27 6.96 8 4.04M12 19.08l8-4.04" /></svg> },
-      { text: 'Industry Applications', to: '/solutions/industry-applications', icon: <svg {...iconProps}><path d="M3 21h18" /><path d="M5 21V7l8-4v18" /><path d="M19 21V11l-6-4" /><path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01" /></svg> },
     ],
   },
   {
@@ -219,7 +233,21 @@ function Navbar() {
                       onClick={closeMobile}
                     >
                       <span className={styles.dropdownLinkIcon} aria-hidden="true">{item.icon}</span>
-                      {item.text}
+                      {item.desc || item.status ? (
+                        <span className={styles.dropdownLinkBody}>
+                          <span className={styles.dropdownLinkTitle}>
+                            {item.text}
+                            {item.status && (
+                              <span className={`${styles.dropdownStatus} ${item.status === STATUS.EARLY_ACCESS ? styles.dropdownStatusEarly : ''}`}>
+                                {item.status}
+                              </span>
+                            )}
+                          </span>
+                          {item.desc && <span className={styles.dropdownLinkDesc}>{item.desc}</span>}
+                        </span>
+                      ) : (
+                        item.text
+                      )}
                     </Link>
                   ))}
                 </div>

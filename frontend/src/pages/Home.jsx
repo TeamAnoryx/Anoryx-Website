@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import styles from './Home.module.css';
 import Main from '../components/Main/Main.jsx';
 import CategorySection from '../components/CategorySection/CategorySection.jsx';
@@ -12,6 +12,7 @@ import PlatformIntelligenceIndex from '../components/PlatformIntelligenceIndex/P
 import AnnouncementStrip from '../components/AnnouncementStrip/AnnouncementStrip.jsx';
 import n8nImage from '../assets/n8n.jpg';
 import { useAuth } from '../context/AuthContext.jsx';
+import { CORE_NARRATIVE, contactHref } from '../data/products.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -168,14 +169,18 @@ function Home() {
           <div className={styles.blackSectionContent}>
             {/* Left — Headline */}
             <div className={styles.heroLeft}>
+              {/* Headline = HERO_HEADLINE in data/products.js ("The secure operating layer for enterprise AI."). */}
               <h1 className={styles.heroHeadline}>
-                <span className={styles.heroSmall}>Build with</span>
-                <span className={styles.heroAccent}>INTELLIGENCE,</span>
-                <span className={styles.heroSmall}>not assumptions</span>
+                <span className={styles.heroSmall}>The secure operating layer for</span>
+                <span className={styles.heroAccent}>ENTERPRISE AI.</span>
               </h1>
               <p className={styles.heroSlogan}>
-                AI-powered systems that remove the work around work.
+                {CORE_NARRATIVE} One platform for AI security, AI cost governance and team collaboration.
               </p>
+              <div className={styles.heroCtaRow}>
+                <Link to={contactHref('ecosystem')} className={styles.heroCtaPrimary}>Request early access</Link>
+                <Link to="/products" className={styles.heroCtaSecondary}>Explore the platform</Link>
+              </div>
             </div>
 
             {/* Right — Sign up form */}
@@ -326,7 +331,7 @@ function Home() {
                     </svg>
                   </div>
                   <div className={styles.widgetContent}>
-                    <div className={styles.widgetLabel}>GDPR Compliance</div>
+                    <div className={styles.widgetLabel}>GDPR readiness</div>
                     <div className={styles.widgetBar}><div style={{ width: '94%' }}></div></div>
                     <div className={styles.widgetValue}>94% Ready</div>
                   </div>
@@ -334,7 +339,7 @@ function Home() {
               </div>
             </div>
 
-            {/* Card 2 - AI & Automation */}
+            {/* Card 2 - AI & Automation. AFFU: keep / remove? Pre-EcoSystem service card (n8n workflow builder visual). */}
             <div className={styles.featureCard}>
               <div className={styles.featureCardHeader}>
                 <h3 className={styles.featureCardTitle}>Automate workflows with intelligent AI agents</h3>
@@ -389,7 +394,7 @@ function Home() {
               </div>
             </div>
 
-            {/* Card 3 - Blockchain & Digital Trust */}
+            {/* Card 3 - Blockchain & Digital Trust. AFFU: keep / remove? Pre-EcoSystem service card, no matching product. */}
             <div className={styles.featureCard}>
               <div className={styles.featureCardHeader}>
                 <h3 className={styles.featureCardTitle}>Build trust with decentralized verification</h3>

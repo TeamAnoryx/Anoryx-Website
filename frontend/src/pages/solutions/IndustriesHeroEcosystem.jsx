@@ -10,7 +10,7 @@ const CENTER = { x: 200, y: 200 };
 
 const INDUSTRY_NODES = [
   { id: 'saas', label: 'SaaS Platforms', angle: 0, radius: 135, color: 'rgba(30, 107, 255, 0.9)', desc: 'Scalable intelligence for software-as-a-service platforms' },
-  { id: 'finance', label: 'Financial Systems', angle: 48, radius: 138, color: 'rgba(6, 182, 212, 0.9)', desc: 'Secure, compliant intelligence for financial infrastructure' },
+  { id: 'finance', label: 'Financial Systems', angle: 48, radius: 138, color: 'rgba(6, 182, 212, 0.9)', desc: 'Secure, audit-ready intelligence for financial infrastructure' },
   { id: 'healthcare', label: 'Healthcare Systems', angle: 98, radius: 132, color: 'rgba(20, 184, 166, 0.9)', desc: 'Privacy-first intelligence for healthcare infrastructure' },
   { id: 'ai', label: 'AI Infrastructure', angle: 155, radius: 140, color: 'rgba(139, 92, 246, 0.9)', desc: 'AI-native intelligence and model orchestration' },
   { id: 'enterprise', label: 'Enterprise IT', angle: 210, radius: 136, color: 'rgba(99, 102, 241, 0.9)', desc: 'Enterprise-grade IT and cloud intelligence' },

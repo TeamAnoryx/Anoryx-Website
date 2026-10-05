@@ -6,12 +6,34 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import LegalModal from '../LegalModal/LegalModal';
 import styles from './Footer.module.css';
+import ProductIcon from '../Ecosystem/ProductIcon.jsx';
+import { PRODUCTS, HERO_HEADLINE, CORE_NARRATIVE } from '../../data/products.js';
+import { FEATURED_SOLUTION_IDS, getSolution } from '../../data/solutions.js';
 
 const COMPANY_EMAIL = 'afnan.ceo@anoryxtechsolutions.com';
 
 const iconProps = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
 
 const FOOTER_SECTIONS = [
+  {
+    title: 'Products',
+    links: PRODUCTS.map((p) => ({
+      label: p.name,
+      to: `/products/${p.slug}`,
+      icon: <ProductIcon name={p.icon} size={18} />,
+    })),
+  },
+  {
+    title: 'Solutions',
+    links: [
+      ...FEATURED_SOLUTION_IDS.map((id) => ({
+        label: getSolution(id).title,
+        to: `/solutions#${id}`,
+        icon: <svg {...iconProps}><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /></svg>,
+      })),
+      { label: 'All Solutions', to: '/solutions', icon: <svg {...iconProps}><path d="M5 12h14M12 5l7 7-7 7" /></svg> },
+    ],
+  },
   {
     title: 'Platform',
     links: [
@@ -23,25 +45,11 @@ const FOOTER_SECTIONS = [
     ],
   },
   {
-    title: 'Solutions',
-    links: [
-      { label: 'Solutions', to: '/solutions', icon: <svg {...iconProps}><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /></svg> },
-      { label: 'Enterprise Automation', to: '/solutions/enterprise-automation', icon: <svg {...iconProps}><circle cx="12" cy="12" r="3" /><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" /></svg> },
-      { label: 'Industry Applications', to: '/solutions/industry-applications', icon: <svg {...iconProps}><path d="M3 21h18" /><path d="M5 21V7l8-4v18" /><path d="M19 21V11l-6-4" /><path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01" /></svg> },
-    ],
-  },
-  {
     title: 'Company',
     links: [
       { label: 'About', to: '/company/about', icon: <svg {...iconProps}><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg> },
       { label: "Founder's Note", to: '/company/founders-note', icon: <svg {...iconProps}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" /></svg> },
       { label: 'Vision & Mission', to: '/company/vision-mission', icon: <svg {...iconProps}><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></svg> },
-    ],
-  },
-  {
-    title: 'Products',
-    links: [
-      { label: 'Products', to: '/products', icon: <svg {...iconProps}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="m3.27 6.96 8 4.04M12 19.08l8-4.04" /></svg> },
     ],
   },
   {
@@ -98,7 +106,7 @@ function Footer() {
               Anoryx
             </Link>
             <p className={styles.tagline}>
-              Building Intelligent Systems for a Trusted Digital Future.
+              {HERO_HEADLINE} {CORE_NARRATIVE}
             </p>
             <span className={styles.globalBadge}>Global</span>
           </div>

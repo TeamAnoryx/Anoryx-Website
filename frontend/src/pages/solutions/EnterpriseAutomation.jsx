@@ -201,7 +201,7 @@ export default function EnterpriseAutomation() {
             <div className={styles.visualCard}>
               <div className={styles.visualCardHeader}>Agent Orchestration</div>
               <div className={styles.orchestrationViz}>
-                <div className={styles.orchCenter}>Orchestrator</div>
+                <div className={styles.orchCenter}>Orchestration Layer</div>
                 <div className={styles.orchRing}>
                   <span className={styles.orchAgent}>Data</span>
                   <span className={styles.orchAgent}>Decision</span>

@@ -7,7 +7,7 @@ const INDEX_ITEMS = [
     id: 'infrastructure',
     question: 'What is Anoryx Intelligence Infrastructure?',
     primary:
-      'Anoryx Intelligence Infrastructure is the unified technology layer that powers our multi-product ecosystem: AI-driven software systems, privacy protection platforms, and autonomous digital workflows. It combines scalable cloud-native architecture, secure data pipelines, and research-led engineering to deliver enterprise-grade intelligence across PII Sentinel, B4LABS, and Rendly.',
+      'Anoryx Intelligence Infrastructure is the unified technology layer that powers the Anoryx EcoSystem: AI security, AI cost governance and secure team collaboration, connected by a central orchestration layer. It combines scalable cloud-native architecture, secure data pipelines, and research-led engineering to deliver enterprise-grade intelligence across Anoryx Sentinel, Anoryx Delta, Anoryx Rendly and the Anoryx Orchestration Layer.',
     secondary:
       'The infrastructure is designed for long-term relevance—emphasizing privacy-first engineering, system-level thinking, and integration with existing enterprise environments rather than isolated point solutions.',
     knowMoreLink: null,
@@ -52,9 +52,9 @@ const INDEX_ITEMS = [
     id: 'continuous-improvement',
     question: 'How does the platform continuously improve and learn?',
     primary:
-      'The platform improves through B4LABS as the internal innovation engine—converting proof-of-concepts into production-ready AI frameworks, reusable agent modules, and workflow intelligence. Operational feedback, research experimentation, and continuous optimization are built into the architecture.',
+      'The platform improves through B4Labs, Anoryx’s internal research lab, converting proof-of-concepts into production-ready AI frameworks, reusable agent modules, and workflow intelligence. Operational feedback, research experimentation, and continuous optimization are built into the architecture.',
     secondary:
-      'Learning is applied across products: PII Sentinel benefits from improved detection models, while Rendly and enterprise workflows benefit from evolving AI capabilities.',
+      'Learning is applied across products: Sentinel benefits from improved detection models, Delta from better cost forecasting, and Rendly from evolving matching capabilities.',
     knowMoreLink: null,
   },
 ];

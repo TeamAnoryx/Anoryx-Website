@@ -2102,3 +2102,56 @@
         font-size: 9px;
     }
 }
+/* ── Hero CTAs (EcoSystem positioning) ───────────────────── */
+.heroCtaRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: var(--space-5);
+}
+
+.heroCtaPrimary,
+.heroCtaSecondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 22px;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform var(--transition-fast), background var(--transition-base), box-shadow var(--transition-base);
+}
+
+.heroCtaPrimary {
+    color: #fff;
+    background: linear-gradient(135deg, var(--color-secondary) 0%, #0065FF 100%);
+    box-shadow: 0 4px 14px rgba(0, 82, 204, 0.35);
+}
+
+.heroCtaPrimary:hover {
+    transform: translateY(-2px);
+}
+
+.heroCtaSecondary {
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.heroCtaSecondary:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.heroCtaPrimary:focus-visible,
+.heroCtaSecondary:focus-visible {
+    outline: 3px solid #4C9AFF;
+    outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+    .heroCtaRow {
+        justify-content: center;
+    }
+}

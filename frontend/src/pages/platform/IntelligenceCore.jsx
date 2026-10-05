@@ -22,7 +22,7 @@ const CAPABILITIES = [
   },
   {
     title: 'Distributed Intelligence Coordination',
-    body: 'Enables multiple Intelligence Core instances or reasoning nodes to operate in a coordinated fashion. Supports horizontal scaling, geographic distribution, and consistency guarantees where required. State synchronization and consensus are handled in a way that preserves latency and throughput for real-time enterprise workloads. Designed for high availability and fault tolerance.',
+    body: 'Enables multiple Intelligence Core instances or reasoning nodes to operate in a coordinated fashion. Supports horizontal scaling, geographic distribution, and defined consistency levels where required. State synchronization and consensus are handled in a way that preserves latency and throughput for real-time enterprise workloads. Designed for high availability and fault tolerance.',
   },
   {
     title: 'Continuous Learning Engine',
@@ -134,7 +134,7 @@ export default function IntelligenceCore() {
               Intelligence Core is engineered for reliability, determinism, security, scalability, and fault tolerance. It is designed to ensure safe and reliable autonomous execution in enterprise environments where incorrect or unpredictable behavior is not acceptable.
             </p>
             <p className={styles.trustPara}>
-              Reliability is achieved through redundant reasoning paths, graceful degradation, and clear failure boundaries. Determinism is maintained where the business requires reproducible outcomes: same inputs and configuration produce the same decisions. Security is enforced at every layer—data in transit and at rest, access control, and audit trails for every decision and execution. Scalability is built in: the core can be deployed across multiple nodes and regions to meet throughput and latency requirements. Fault tolerance ensures that single-node or partial failures do not compromise system-wide intelligence; state is recovered and processing continues within defined guarantees.
+              Reliability is achieved through redundant reasoning paths, graceful degradation, and clear failure boundaries. Determinism is maintained where the business requires reproducible outcomes: same inputs and configuration produce the same decisions. Security is enforced at every layer—data in transit and at rest, access control, and audit trails for every decision and execution. Scalability is built in: the core can be deployed across multiple nodes and regions to meet throughput and latency requirements. Fault tolerance ensures that single-node or partial failures do not compromise system-wide intelligence; state is recovered and processing continues within defined recovery objectives.
             </p>
             <p className={styles.trustPara}>
               Enterprise-grade stability means predictable performance under load, controlled rollouts of model and policy changes, and compatibility with existing enterprise security and compliance frameworks. Anoryx builds technology that the world can rely on—Intelligence Core is the foundation of that commitment for autonomous enterprise execution.

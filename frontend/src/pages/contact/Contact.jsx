@@ -1,16 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { PRODUCT_INTEREST_OPTIONS } from '../../data/products.js';
 import styles from './Contact.module.css';
+
+const VALID_INTERESTS = new Set(PRODUCT_INTEREST_OPTIONS.map((o) => o.value));
 
 export default function Contact() {
   const sectionRefs = useRef([]);
   const [inView, setInView] = useState({});
+  const [searchParams] = useSearchParams();
+  const requestedProduct = searchParams.get('product') || '';
+  const initialInterest = VALID_INTERESTS.has(requestedProduct) ? requestedProduct : '';
   const [form, setForm] = useState({
     fullName: '',
     workEmail: '',
     companyName: '',
-    subject: '',
+    productInterest: initialInterest,
+    subject: initialInterest ? 'early-access' : '',
     message: '',
   });
+
+  /* Pre-select the product when arriving from a product CTA (?product=<slug>). */
+  useEffect(() => {
+    if (initialInterest) {
+      setForm((prev) => ({ ...prev, productInterest: initialInterest, subject: prev.subject || 'early-access' }));
+    }
+  }, [initialInterest]);
   const [submitStatus, setSubmitStatus] = useState(null); // null | 'sending' | 'success' | 'error'
   const [submitMessage, setSubmitMessage] = useState('');
 
@@ -59,7 +74,7 @@ export default function Contact() {
       }
       setSubmitStatus('success');
       setSubmitMessage(data.message || 'Thank you. Your message has been sent.');
-      setForm({ fullName: '', workEmail: '', companyName: '', subject: '', message: '' });
+      setForm({ fullName: '', workEmail: '', companyName: '', productInterest: '', subject: '', message: '' });
     } catch (err) {
       setSubmitStatus('error');
       setSubmitMessage('Network error. Please check your connection or email us at afnan.ceo@anoryxtechsolutions.com');
@@ -159,6 +174,20 @@ export default function Contact() {
                   />
                 </label>
                 <label className={styles.formLabel}>
+                  Product of interest
+                  <select
+                    name="productInterest"
+                    value={form.productInterest}
+                    onChange={handleChange}
+                    className={styles.formSelect}
+                  >
+                    <option value="">Select a product (optional)</option>
+                    {PRODUCT_INTEREST_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className={styles.formLabel}>
                   Subject
                   <select
                     name="subject"
@@ -168,6 +197,7 @@ export default function Contact() {
                     required
                   >
                     <option value="">Select a topic</option>
+                    <option value="early-access">Early access / design partner</option>
                     <option value="sales">Sales & Enterprise</option>
                     <option value="engineering">Technical Support</option>
                     <option value="partnerships">Partnerships</option>
