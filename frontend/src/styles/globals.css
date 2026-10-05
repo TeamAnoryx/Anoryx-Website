@@ -27,6 +27,10 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
+  /* Full-bleed decorations use 100vw, which includes the scrollbar width; hide the
+     few pixels of overflow so pages never scroll sideways. Set on html only (not
+     body) so the viewport stays the scroll container and position: sticky works. */
+  overflow-x: hidden;
 }
 
 body {

@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import ProductIcon from '../../components/Ecosystem/ProductIcon.jsx';
+import StatusPill from '../../components/Ecosystem/StatusPill.jsx';
+import { PRODUCTS, PLATFORM_NAME, contactHref } from '../../data/products.js';
 import styles from './FoundersNote.module.css';
 import founderImg from '../../assets/founder.webp';
 
@@ -167,51 +171,62 @@ export default function FoundersNote() {
           </div>
         </section>
 
-        {/* Section 4 — Strategic Roadmap Table */}
+        {/* Section 4 — What We're Building Today (products from data/products.js) */}
         <section
-          className={`${styles.section} ${styles.sectionStripe} ${styles.roadmapSection} ${inView.roadmap ? styles.inView : ''}`}
+          className={`${styles.section} ${styles.sectionStripe} ${styles.roadmapSection} ${inView.building ? styles.inView : ''}`}
           ref={(el) => (sectionRefs.current[3] = el)}
-          data-section="roadmap"
+          data-section="building"
+          aria-labelledby="building-heading"
         >
           <div className={styles.container}>
             <div className={styles.roadmapHeadingWrap}>
               <span className={styles.roadmapSectionIcon} aria-hidden>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><circle cx="4" cy="5" r="2" /><circle cx="20" cy="5" r="2" /><circle cx="12" cy="21" r="2" /><path d="M6 6.2l3.8 3.6M18 6.2l-3.8 3.6M12 15v4" /></svg>
               </span>
-              <h2 className={styles.roadmapSectionHeading}>Strategic Roadmap</h2>
+              <h2 id="building-heading" className={styles.roadmapSectionHeading}>What We&apos;re Building Today</h2>
             </div>
-            <div className={styles.tableWrap}>
-              <table className={styles.roadmapTable}>
-                <thead>
-                  <tr>
-                    <th className={styles.roadmapThTimeline}>Timeline</th>
-                    <th>Focus Area</th>
-                    <th>Strategic Objective</th>
-                    <th>Expected Outcome</th>
-                  </tr>
-                </thead>
-                {/* AFFU: keep / remove? Roadmap includes user targets and fundraising, which the products brief keeps off the public site. Anoryx Delta and the Orchestration Layer are not in this roadmap yet. */}
-                <tbody>
-                  <tr>
-                    <td data-label="Timeline"><span className={styles.timelineBadge}><span className={styles.timelineIcon} aria-hidden>1</span> Year 1</span></td>
-                    <td data-label="Focus Area">Anoryx Rendly as main product; Anoryx Sentinel (sell in Year 1 only)</td>
-                    <td data-label="Strategic Objective">Develop and launch Rendly; gain 100k users; raise initial investments. Launch and sell Sentinel in Year 1.</td>
-                    <td data-label="Expected Outcome">Rendly live with 100k users; initial funding secured; Sentinel in market.</td>
-                  </tr>
-                  <tr>
-                    <td data-label="Timeline"><span className={styles.timelineBadge}><span className={styles.timelineIcon} aria-hidden>2</span> Year 2</span></td>
-                    <td data-label="Focus Area">Sentinel expansion; expanding Rendly</td>
-                    <td data-label="Strategic Objective">Expand Sentinel; scale Rendly.</td>
-                    <td data-label="Expected Outcome">Multi-product traction; stronger Rendly and Sentinel presence.</td>
-                  </tr>
-                  <tr>
-                    <td data-label="Timeline"><span className={styles.timelineBadge}><span className={styles.timelineIcon} aria-hidden>5</span> Year 5</span></td>
-                    <td data-label="Focus Area">Rendly and Sentinel globally</td>
-                    <td data-label="Strategic Objective">Take Rendly and Sentinel global; scale as global intelligence infrastructure provider.</td>
-                    <td data-label="Expected Outcome">Rendly and Sentinel in global markets; recognized deep-tech platform company; strong growth and adoption.</td>
-                  </tr>
-                </tbody>
-              </table>
+            <p className={styles.buildLead}>
+              That mission takes shape as the {PLATFORM_NAME}: four products that let enterprises adopt AI without
+              giving up control of their data, their spend or their conversations. Each one solves one problem well,
+              and the Orchestration Layer connects them so a signal in one product triggers action in the others.
+            </p>
+
+            <div className={styles.buildGrid}>
+              {PRODUCTS.map((p) => (
+                <Link key={p.slug} to={`/products/${p.slug}`} className={styles.buildCard}>
+                  <div className={styles.buildCardTop}>
+                    <span className={styles.buildCardIcon}>
+                      <ProductIcon name={p.icon} />
+                    </span>
+                    <StatusPill status={p.status} />
+                  </div>
+                  <h3 className={styles.buildCardName}>{p.name}</h3>
+                  <p className={styles.buildCardCategory}>{p.category}</p>
+                  <p className={styles.buildCardTagline}>{p.tagline}</p>
+                  <span className={styles.buildCardLink}>{p.buttonLabel} →</span>
+                </Link>
+              ))}
+            </div>
+
+            <h3 className={styles.commitHeading}>Three commitments behind every product</h3>
+            <ul className={styles.commitList}>
+              <li className={styles.commitItem}>
+                <strong>Your data never leaves your organisation.</strong> Everything we build is self-hostable and
+                zero-trust by default.
+              </li>
+              <li className={styles.commitItem}>
+                <strong>We tell you exactly where each product stands.</strong> &ldquo;Early Access&rdquo; and
+                &ldquo;In Development&rdquo; mean what they say; we don&apos;t claim certifications we don&apos;t hold.
+              </li>
+              <li className={styles.commitItem}>
+                <strong>We build with the people who use it.</strong> Design partners shape every release before it
+                ships.
+              </li>
+            </ul>
+
+            <div className={styles.buildCtaRow}>
+              <Link to={contactHref('ecosystem')} className={styles.buildCtaPrimary}>Become a design partner</Link>
+              <Link to="/products" className={styles.buildCtaSecondary}>Explore the {PLATFORM_NAME}</Link>
             </div>
           </div>
         </section>

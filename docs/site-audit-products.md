@@ -76,7 +76,6 @@ Old URLs were in-page anchors on a client-rendered SPA, so they redirect in the 
 - **Main.jsx n8n workflow-builder visual** (`components/Main/Main.jsx`).
 - **"More from Anoryx" on /solutions**: Enterprise Automation, Industry Applications, custom backend engineering, domain-specific SLM systems.
 - **Placeholder solution routes**: `/solutions/ai-infrastructure`, `/solutions/privacy-first-ai`, `/solutions/autonomous-decision-systems`.
-- **Founder's Note roadmap table**: contains user targets ("100k users") and fundraising, which the brief keeps off the public site. Delta and the Orchestration Layer aren't in it.
 - **Rendly screenshots** (`ProductDetail.jsx`): early builds of the earlier Rendly platform; may not reflect the new collaboration product.
 - **About page**: "Four patents filed (pending)" sits on the Sentinel timeline entry. Confirm the patents apply to Anoryx Sentinel.
 - **Unused assets**: `pii1.jpg`–`pii4.jpg` (old PII Sentinel screenshots) are no longer referenced.
@@ -90,3 +89,7 @@ Old URLs were in-page anchors on a client-rendered SPA, so they redirect in the 
 ## B4Labs
 
 Removed from every page on request (Products research block, About card, Founder's Note roadmap, platform intelligence FAQ).
+
+## Founder's Note
+
+Strategic Roadmap table removed on request; replaced with "What We're Building Today" (EcoSystem products from `data/products.js` plus three commitments).
