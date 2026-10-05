@@ -12,19 +12,11 @@ import useSectionsInView from '../../hooks/useSectionsInView.js';
 import { PRODUCTS, STATUS, PLATFORM_NAME, getProduct, contactHref } from '../../data/products.js';
 import styles from './Products.module.css';
 import eco from '../../components/Ecosystem/Ecosystem.module.css';
-import pii1 from '../../assets/pii1.jpg';
-import pii2 from '../../assets/pii2.jpg';
-import pii4 from '../../assets/pii4.jpg';
 import rendly2 from '../../assets/rendly2.jpg';
 import rendly3 from '../../assets/rendly3.jpg';
 
 /* Product interface screenshots (presentation assets, keyed by slug). */
 const GALLERY = {
-  sentinel: [
-    { src: pii1, alt: 'Anoryx Sentinel dashboard view', caption: 'Dashboard view' },
-    { src: pii2, alt: 'Anoryx Sentinel detection interface', caption: 'Detection interface' },
-    { src: pii4, alt: 'Anoryx Sentinel detailed analysis report', caption: 'Analysis report' },
-  ],
   rendly: [
     { src: rendly2, alt: 'Anoryx Rendly sign-in screen (early build)', caption: 'Sign-in (early build)' },
     { src: rendly3, alt: 'Anoryx Rendly dashboard (early build)', caption: 'Dashboard (early build)' },

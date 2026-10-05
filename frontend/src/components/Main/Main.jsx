@@ -545,7 +545,7 @@ function Main() {
           <div className={styles.featureCardContent}>
             <span className={`${styles.featureCardTag} ${styles.featureCardTagDark}`}>AI-POWERED PRIVACY & SECURITY</span>
             <h3 className={styles.featureCardTitle}>Stay Secure While You Scale</h3>
-            <p className={styles.featureCardText}>Protect sensitive data, monitor identity exposure, and maintain compliance automatically with AI-powered privacy and security intelligence built for modern digital infrastructure.</p>
+            <p className={styles.featureCardText}>Use any LLM without sending it your secrets. Anoryx Sentinel redacts PII and credentials before prompts leave your network, blocks prompt injection and keeps a tamper-evident audit log of every model call.</p>
           </div>
           <Link to="/products/sentinel" className={styles.featureCardLink}>Explore Anoryx Sentinel →</Link>
         </div>

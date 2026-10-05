@@ -48,7 +48,8 @@ Source brief: `ANORYX_SITE_PRODUCTS_UPDATE.md`. Branch: `site/products-v2`.
 | `pages/company/About.jsx` | PII Sentinel / Rendly / B4LABS cards and timeline | Canonical names; product grid from data; company described as building the Anoryx EcoSystem; patents fact kept |
 | `pages/company/FoundersNote.jsx` | PII Sentinel in roadmap table | Canonical names only (founder's text otherwise unchanged) |
 | `pages/company/VisionMission.jsx` | "Products like PII Sentinel deliver … compliance automation" | Sentinel described by mechanism |
-| `pages/platform/AutonomousAgentSystem.jsx` | PII-Sentinel, Rendly | Anoryx Sentinel, Anoryx Rendly |
+| `pages/platform/AutonomousAgentSystem.jsx` | Old PII-Sentinel and Rendly descriptions | Rewritten to the brief's descriptions of Sentinel and Rendly |
+| `pages/products/ProductDetail.jsx` (Sentinel) | n/a | Old PII Sentinel screenshots and demo video removed (different product) |
 | `pages/solutions/EnterpriseAutomation.jsx` | "Orchestrator" node | "Orchestration Layer" |
 | `pages/platform/Architecture.jsx`, `SecurityTrust.jsx`, `IntelligenceCore.jsx`, `pages/solutions/IndustryApplications.jsx`, `IndustriesHeroEcosystem.jsx` | "compliant", "guarantees" | "auditable", "audit-ready", "aligned with", "defined consistency levels", "recovery objectives" |
 | `frontend/index.html` | Generic description, no OG tags | §1 one-liner as description, OG/Twitter tags, `Organization` JSON-LD |
@@ -62,7 +63,7 @@ Old URLs were in-page anchors on a client-rendered SPA, so they redirect in the 
 - `/products#pii-sentinel` → `/products/sentinel`
 - `/products#rendly` → `/products/rendly`
 - `/products#b4labs` → scrolls to `#research` on `/products`
-- `/solutions#pii-sentinel-video` → `/products/sentinel` (the demo video lives on the Sentinel page)
+- `/solutions#pii-sentinel-video` → `/products/sentinel` (the old PII Sentinel demo video was removed: it showed a different, earlier product)
 
 ## Items for Affu
 
@@ -78,7 +79,9 @@ Old URLs were in-page anchors on a client-rendered SPA, so they redirect in the 
 - **"More from Anoryx" on /solutions**: Enterprise Automation, Industry Applications, custom backend engineering, domain-specific SLM systems.
 - **Placeholder solution routes**: `/solutions/ai-infrastructure`, `/solutions/privacy-first-ai`, `/solutions/autonomous-decision-systems`.
 - **Founder's Note roadmap table**: contains user targets ("100k users") and fundraising, which the brief keeps off the public site. Delta and the Orchestration Layer aren't in it.
-- **Product screenshots**: Sentinel screenshots still show the old "PII Sentinel" UI label; Rendly screenshots are early builds.
+- **Rendly screenshots** (`ProductDetail.jsx`): early builds of the earlier Rendly platform; may not reflect the new collaboration product.
+- **About page**: "Four patents filed (pending)" sits on the Sentinel timeline entry. Confirm the patents apply to Anoryx Sentinel.
+- **Unused assets**: `pii1.jpg`–`pii4.jpg` (old PII Sentinel screenshots) are no longer referenced.
 
 ## Not done / out of scope
 

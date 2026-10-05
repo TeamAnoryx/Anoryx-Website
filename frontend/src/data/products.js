@@ -52,8 +52,10 @@ export const PRODUCTS = [
       'Authenticate',
       'Detect & redact',
       'Policy check',
-      'Route to model',
-      'Scan response & audit',
+      'Route',
+      'Model provider',
+      'Scan response',
+      'Restore context & audit',
     ],
     howItWorksText:
       'App → Sentinel (authenticate → detect & redact → policy check → route) → model provider → Sentinel (scan response, restore context, audit) → App.',
@@ -91,7 +93,6 @@ export const PRODUCTS = [
     },
     buyers: ['CISOs', 'Security engineering', 'Platform / AI-infra teams', 'Compliance leads'],
     ctaLabel: 'Request Sentinel early access',
-    demoVideoId: 'c5985A2xU6Q',
   },
   {
     slug: 'delta',
