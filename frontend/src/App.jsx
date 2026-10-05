@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
 import Navbar from './components/Navbar/Navbar.jsx';
@@ -22,11 +22,19 @@ import Contact from './pages/contact/Contact.jsx';
 import Products from './pages/products/Products.jsx';
 import ProductDetail from './pages/products/ProductDetail.jsx';
 
-/* Reset scroll on route change; in-page anchors (#hash) are handled by each page. */
+/* Always start a newly opened page at the top: on route change and on reload.
+ * The browser's own scroll restoration is turned off so a reload doesn't jump back
+ * to where the visitor was (e.g. the footer). Scrolling is instant, overriding the
+ * global `scroll-behavior: smooth`, so the old position never animates into view.
+ * In-page anchors (#hash) are handled by each page. */
+if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
+  window.history.scrollRestoration = 'manual';
+}
+
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
-  useEffect(() => {
-    if (!hash) window.scrollTo(0, 0);
+  useLayoutEffect(() => {
+    if (!hash) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [pathname, hash]);
   return null;
 }

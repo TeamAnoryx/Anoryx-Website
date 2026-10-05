@@ -64,11 +64,22 @@ export default function WhySection() {
     const section = sectionRef.current;
     if (!section) return;
 
-    const handleScroll = () => {
+    // Blur is applied at most once per frame and only when the value changes;
+    // a blur filter recomputed on every scroll event made the page stutter.
+    let frame = 0;
+    let lastBlur = -1;
+    const applyBlur = (blur) => {
+      const rounded = Math.round(blur * 2) / 2;
+      if (rounded === lastBlur) return;
+      lastBlur = rounded;
+      section.style.filter = rounded > 0 ? `blur(${rounded}px)` : '';
+    };
+
+    const update = () => {
+      frame = 0;
       // Disable blur effect on mobile/tablet — normal flow only
       if (window.innerWidth <= 1024) {
-        section.style.filter = '';
-        section.style.opacity = '';
+        applyBlur(0);
         return;
       }
 
@@ -93,19 +104,19 @@ export default function WhySection() {
       const triggerPoint = sectionHeight * 0.6;
       const progress = Math.max(0, Math.min(1, overlap / triggerPoint));
 
-      if (progress > 0) {
-        // Max blur 65% = ~7px blur, applied slowly
-        const blur = progress * 7;
-        section.style.filter = `blur(${blur}px)`;
-        section.style.opacity = 1; // no opacity change, just blur
-      } else {
-        section.style.filter = 'blur(0px)';
-        section.style.opacity = 1;
-      }
+      // Max blur 65% = ~7px blur, applied slowly
+      applyBlur(progress * 7);
+    };
+
+    const handleScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, []);
 
   return (

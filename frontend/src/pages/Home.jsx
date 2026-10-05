@@ -11,13 +11,39 @@ import StripeSection from '../components/StripeSection/StripeSection.jsx';
 import PlatformIntelligenceIndex from '../components/PlatformIntelligenceIndex/PlatformIntelligenceIndex.jsx';
 import AnnouncementStrip from '../components/AnnouncementStrip/AnnouncementStrip.jsx';
 import n8nImage from '../assets/n8n.jpg';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuth, warmUpApi } from '../context/AuthContext.jsx';
 import { CORE_NARRATIVE, contactHref } from '../data/products.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const SIGNUP_PROMPT_MSG = 'Enter valid email address and sign in.';
+const SLOW_NOTICE_DELAY_MS = 3000;
+const RETRY_DELAY_MS = 1500;
+
+/* POST JSON to the API. Retries once when the server is still waking up
+ * (network error or 502/503/504), which happens on the first request after idle. */
+async function postAuth(path, body) {
+  const attempt = () =>
+    fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  let res;
+  try {
+    res = await attempt();
+  } catch {
+    res = null;
+  }
+  if (!res || [502, 503, 504].includes(res.status)) {
+    await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+    res = await attempt();
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.token || !data.user) throw new Error(data.error || 'Sign-in failed. Please try again.');
+  return data;
+}
 
 function Home() {
   const location = useLocation();
@@ -27,34 +53,36 @@ function Home() {
   const [signupPrompt, setSignupPrompt] = useState('');
   const [inputHighlight, setInputHighlight] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
+  const [slowNotice, setSlowNotice] = useState(false);
   const [consentModalOpen, setConsentModalOpen] = useState(false);
   const [thankYouModalOpen, setThankYouModalOpen] = useState(false);
   const emailInputRef = useRef(null);
   const googleButtonRef = useRef(null);
 
   // Callback for Google sign-in (used by both renderButton and prompt)
-  const handleGoogleCredential = (response) => {
-    if (!response?.credential) return;
+  const runAuth = async (path, body) => {
     setSignupLoading(true);
     setSignupPrompt('');
     setInputHighlight(false);
-    fetch(`${API_BASE}/api/auth/google`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id_token: response.credential }),
-    })
-      .then(async (res) => {
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || 'Google sign-in failed');
-        return data;
-      })
-      .then((data) => {
-        if (!data.token || !data.user) throw new Error(data.error || 'Google sign-in failed');
-        authLogin(data.token, data.user);
-        setConsentModalOpen(true);
-      })
-      .catch((err) => setSignupPrompt(err.message || 'Google sign-in failed.'))
-      .finally(() => setSignupLoading(false));
+    const slowTimer = setTimeout(() => setSlowNotice(true), SLOW_NOTICE_DELAY_MS);
+    try {
+      const data = await postAuth(path, body);
+      authLogin(data.token, data.user);
+      setConsentModalOpen(true);
+      return true;
+    } catch (err) {
+      setSignupPrompt(err.message || 'Sign-in failed. Please try again.');
+      return false;
+    } finally {
+      clearTimeout(slowTimer);
+      setSlowNotice(false);
+      setSignupLoading(false);
+    }
+  };
+
+  const handleGoogleCredential = (response) => {
+    if (!response?.credential) return;
+    runAuth('/api/auth/google', { id_token: response.credential });
   };
 
   // Load Google Identity Services and render the official Google button (reliable popup)
@@ -113,25 +141,8 @@ function Home() {
       emailInputRef.current?.focus();
       return;
     }
-    setSignupLoading(true);
-    setSignupPrompt('');
-    setInputHighlight(false);
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmed }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Signup failed');
-      authLogin(data.token, data.user);
-      setConsentModalOpen(true);
-    } catch (err) {
-      setSignupPrompt(err.message || 'Signup failed. Please try again.');
-      setInputHighlight(true);
-    } finally {
-      setSignupLoading(false);
-    }
+    const ok = await runAuth('/api/auth/signup', { email: trimmed });
+    if (!ok) setInputHighlight(true);
   };
 
   const handleConsentAllow = async () => {
@@ -201,6 +212,7 @@ function Home() {
                     placeholder="you@company.com"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setSignupPrompt(''); setInputHighlight(false); }}
+                    onFocus={warmUpApi}
                     aria-label="Work email"
                   />
                   <p className={styles.signupDescription}>
@@ -214,6 +226,11 @@ function Home() {
                   >
                     {signupLoading ? 'Signing up…' : 'Sign up'}
                   </button>
+                  {slowNotice && (
+                    <p className={styles.signupDescription} role="status">
+                      Waking up our server. The first sign-in after a quiet spell can take a few seconds.
+                    </p>
+                  )}
                   <div className={styles.dividerWithText}>
                     <span className={styles.dividerLine}></span>
                     <span className={styles.dividerText}>Or continue with</span>

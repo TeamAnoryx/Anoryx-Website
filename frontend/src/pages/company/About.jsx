@@ -4,7 +4,7 @@ import styles from './About.module.css';
 import { PRODUCTS, PLATFORM_NAME } from '../../data/products.js';
 
 const PRODUCT_CARD_CLASS = { blue: 'productCardBlue', purple: 'productCardPurple', orange: 'productCardOrange', teal: 'productCardTeal' };
-import founderImg from '../../assets/founder.jpg';
+import founderImg from '../../assets/founder.webp';
 import farhanaImg from '../../assets/farhana.jpg';
 
 export default function About() {

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import styles from './FoundersNote.module.css';
-import founderImage from '../../assets/founder.jpg';
+import founderImage from '../../assets/founder.webp';
 
 const FOUNDER = {
   name: 'Afnan Pasha',

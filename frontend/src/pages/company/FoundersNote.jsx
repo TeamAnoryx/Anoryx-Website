@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import styles from './FoundersNote.module.css';
-import founderImg from '../../assets/founder.jpg';
+import founderImg from '../../assets/founder.webp';
 
 const FOUNDER_NAME = 'Afnan Pasha';
 const FOUNDER_TITLE = 'Founder & Director';

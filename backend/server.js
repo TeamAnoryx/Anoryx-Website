@@ -14,7 +14,7 @@ const { ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 
-const { connect: connectDb, getDb } = require('./db.js');
+const { ensureDb } = require('./db.js');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -100,7 +100,7 @@ app.post('/api/auth/signup', authRateLimiter, async (req, res) => {
   if (!JWT_SECRET) {
     return res.status(503).json({ success: false, error: 'Auth not configured' });
   }
-  const db = getDb();
+  const db = await ensureDb();
   if (!db) {
     return res.status(503).json({ success: false, error: 'Database not connected' });
   }
@@ -112,22 +112,25 @@ app.post('/api/auth/signup', authRateLimiter, async (req, res) => {
     }
     const users = db.collection('users');
     const now = new Date();
-    let user = await users.findOne({ email: trimmed.toLowerCase() });
-    if (!user) {
-      const result = await users.insertOne({
-        email: trimmed.toLowerCase(),
-        name: null,
-        phone: null,
-        googleId: null,
-        providerId: 'email',
-        notificationsAllowed: false,
-        cookiesAllowed: false,
-        consentedAt: null,
-        createdAt: now,
-        updatedAt: now,
-      });
-      user = await users.findOne({ _id: result.insertedId });
-    }
+    // One round trip: return the existing user or create it.
+    const user = await users.findOneAndUpdate(
+      { email: trimmed.toLowerCase() },
+      {
+        $setOnInsert: {
+          email: trimmed.toLowerCase(),
+          name: null,
+          phone: null,
+          googleId: null,
+          providerId: 'email',
+          notificationsAllowed: false,
+          cookiesAllowed: false,
+          consentedAt: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+      { upsert: true, returnDocument: 'after' }
+    );
     const token = jwt.sign(
       { userId: user._id.toString(), email: user.email },
       JWT_SECRET,
@@ -149,7 +152,7 @@ app.post('/api/auth/google', authRateLimiter, async (req, res) => {
   if (!JWT_SECRET || !googleClient) {
     return res.status(503).json({ success: false, error: 'Google auth not configured' });
   }
-  const db = getDb();
+  const db = await ensureDb();
   if (!db) {
     return res.status(503).json({ success: false, error: 'Database not connected' });
   }
@@ -177,28 +180,21 @@ app.post('/api/auth/google', authRateLimiter, async (req, res) => {
     }
     const users = db.collection('users');
     const now = new Date();
-    let user = await users.findOne({ $or: [{ googleId }, { email }] });
-    if (!user) {
-      const result = await users.insertOne({
-        email,
-        name,
-        phone: null,
-        googleId,
-        providerId: 'google',
-        notificationsAllowed: false,
-        cookiesAllowed: false,
-        consentedAt: null,
-        createdAt: now,
-        updatedAt: now,
-      });
-      user = await users.findOne({ _id: result.insertedId });
-    } else {
-      await users.updateOne(
-        { _id: user._id },
-        { $set: { googleId, providerId: 'google', email, name, updatedAt: now } }
-      );
-      user = await users.findOne({ _id: user._id });
-    }
+    // One round trip: link Google to the existing account (by Google ID or email) or create it.
+    const user = await users.findOneAndUpdate(
+      { $or: [{ googleId }, { email }] },
+      {
+        $set: { googleId, providerId: 'google', email, name, updatedAt: now },
+        $setOnInsert: {
+          phone: null,
+          notificationsAllowed: false,
+          cookiesAllowed: false,
+          consentedAt: null,
+          createdAt: now,
+        },
+      },
+      { upsert: true, returnDocument: 'after' }
+    );
     const token = jwt.sign(
       { userId: user._id.toString(), email: user.email },
       JWT_SECRET,
@@ -218,7 +214,7 @@ app.post('/api/auth/google', authRateLimiter, async (req, res) => {
 
 // PATCH /api/auth/consent — update notifications/cookies consent (auth required)
 app.patch('/api/auth/consent', authMiddleware, async (req, res) => {
-  const db = getDb();
+  const db = await ensureDb();
   if (!db) return res.status(503).json({ success: false, error: 'Database not connected' });
   try {
     const { notificationsAllowed, cookiesAllowed } = req.body || {};
@@ -241,7 +237,7 @@ app.patch('/api/auth/consent', authMiddleware, async (req, res) => {
 
 // PATCH /api/auth/profile — update name, phone (auth required)
 app.patch('/api/auth/profile', authMiddleware, async (req, res) => {
-  const db = getDb();
+  const db = await ensureDb();
   if (!db) return res.status(503).json({ success: false, error: 'Database not connected' });
   try {
     const { name, phone } = req.body || {};
@@ -264,7 +260,7 @@ app.patch('/api/auth/profile', authMiddleware, async (req, res) => {
 
 // GET /api/auth/me — current user (auth required)
 app.get('/api/auth/me', authMiddleware, async (req, res) => {
-  const db = getDb();
+  const db = await ensureDb();
   if (!db) return res.status(503).json({ success: false, error: 'Database not connected' });
   try {
     const user = await db.collection('users').findOne({ _id: new ObjectId(req.userId) });
@@ -357,18 +353,18 @@ app.post('/api/contact', async (req, res) => {
 });
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true });
+// Health check. Also used by the frontend to wake the server (and the DB connection)
+// before the visitor reaches the sign-up form.
+app.get('/api/health', async (req, res) => {
+  const db = await ensureDb();
+  res.json({ ok: true, db: Boolean(db) });
 });
 
-(async () => {
-  try {
-    await connectDb();
-    console.log('MongoDB connected');
-  } catch (err) {
-    console.error('MongoDB connection failed:', err.message);
-  }
-  app.listen(PORT, () => {
-    console.log(`Anoryx backend running on http://localhost:${PORT}`);
-  });
-})();
+// Start accepting requests immediately; connect to MongoDB in the background.
+// Requests that need the database retry the connection themselves (see db.js).
+app.listen(PORT, () => {
+  console.log(`Anoryx backend running on http://localhost:${PORT}`);
+});
+ensureDb().then((db) => {
+  if (db) console.log('MongoDB connected');
+});

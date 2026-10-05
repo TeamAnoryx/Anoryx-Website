@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import styles from './Main.module.css';
-import main1Image from '../../assets/main1.png';
+import main1Image from '../../assets/main1.webp';
 import main5Image from '../../assets/main5.jpg';
 import main2Image from '../../assets/main2.jpg';
 
@@ -11,7 +11,7 @@ function Main() {
       <div className={styles.testimonialSection}>
         {/* Left - Image */}
         <div className={styles.testimonialImage}>
-          <img src={main1Image} alt="Anoryx Testimonial" />
+          <img src={main1Image} alt="Anoryx Testimonial" width="1800" height="910" loading="lazy" decoding="async" />
         </div>
 
         {/* Right - Content */}

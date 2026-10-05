@@ -25,6 +25,10 @@ function createRay(baseAngle, fromCenter, baseLen, thickMin, thickMax) {
 // ── All rays from 0° to 180° ONLY (upward) ───────────────────────────
 // Original 500 + 2000 extra = 2500 total rays
 // All strictly between 0 and π — NO rays below 180°
+/* Quantisation for batched drawing (alpha in 1/40 steps, width in 0.1px steps). */
+const ALPHA_STEPS = 40;
+const WIDTH_STEPS = 10;
+
 function buildRays() {
   const rays = [];
 
@@ -243,6 +247,9 @@ export default function StripeSection() {
     const CURSOR_RADIUS = 180;
     const MAX_CURSOR_PUSH = 0.45; // Max bend from cursor
 
+    const rayBatches = new Map();
+    const dotBatches = new Map();
+
     rays.forEach((ray) => {
       // ── Calculate ray midpoint for hover detection ──────────────────
       const midX = ox + Math.cos(ray.baseAngle) * ray.baseLen * 0.5;
@@ -346,41 +353,55 @@ export default function StripeSection() {
         ? 0.50 - fromCenter * 0.16
         : 0.60 - fromCenter * 0.20;
 
-      const rayColor = dark
-        ? `rgba(200,215,255,${alpha})`
-        : `rgba(48,68,168,${alpha})`;
-
-      // Draw curved ray using quadraticCurveTo
-      ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.quadraticCurveTo(cx, cy, ex, ey);
-      ctx.strokeStyle = rayColor;
-      ctx.lineWidth   = ray.thickness * scale;
-      ctx.lineCap     = "round";
-      ctx.stroke();
+      // Batch by quantised alpha + width: a few dozen strokes per frame instead of
+      // one per ray (2,500), which is what made this section expensive to paint.
+      const aKey = Math.round(alpha * ALPHA_STEPS);
+      const wKey = Math.round(ray.thickness * scale * WIDTH_STEPS);
+      const key = aKey * 1000 + wKey;
+      let batch = rayBatches.get(key);
+      if (!batch) { batch = new Path2D(); rayBatches.set(key, batch); }
+      batch.moveTo(sx, sy);
+      batch.quadraticCurveTo(cx, cy, ex, ey);
 
       // Tick dot — night theme at tip of all rays, day theme at middle (original)
       if (dark) {
-        // Night theme: dots on ALL rays at the tip
-        ctx.beginPath();
-        ctx.arc(ex, ey, ray.thickness * 1.8 * scale, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(220,232,255,${alpha + 0.25})`;
-        ctx.fill();
+        const r = ray.thickness * 1.8 * scale;
+        let dots = dotBatches.get(aKey);
+        if (!dots) { dots = new Path2D(); dotBatches.set(aKey, dots); }
+        dots.moveTo(ex + r, ey);
+        dots.arc(ex, ey, r, 0, Math.PI * 2);
       } else if (ray.hasTick) {
-        // Day theme: dots only on rays with hasTick at the middle (original position)
-        const tp = ray.tickPos;
         // For curved ray, interpolate along the curve
-        const tVal = tp;
+        const tVal = ray.tickPos;
         const qx = (1-tVal)*(1-tVal)*sx + 2*(1-tVal)*tVal*cx + tVal*tVal*ex;
         const qy = (1-tVal)*(1-tVal)*sy + 2*(1-tVal)*tVal*cy + tVal*tVal*ey;
-        ctx.beginPath();
-        ctx.arc(qx, qy, ray.thickness * 1.5 * scale, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(48,68,168,${alpha + 0.20})`;
-        ctx.fill();
+        const r = ray.thickness * 1.5 * scale;
+        let dots = dotBatches.get(aKey);
+        if (!dots) { dots = new Path2D(); dotBatches.set(aKey, dots); }
+        dots.moveTo(qx + r, qy);
+        dots.arc(qx, qy, r, 0, Math.PI * 2);
       }
     });
 
-    animRef.current = requestAnimationFrame(draw);
+    ctx.lineCap = "round";
+    rayBatches.forEach((path, key) => {
+      const aKey = Math.floor(key / 1000);
+      const wKey = key % 1000;
+      ctx.strokeStyle = dark
+        ? `rgba(200,215,255,${aKey / ALPHA_STEPS})`
+        : `rgba(48,68,168,${aKey / ALPHA_STEPS})`;
+      ctx.lineWidth = wKey / WIDTH_STEPS;
+      ctx.stroke(path);
+    });
+    dotBatches.forEach((path, aKey) => {
+      const alpha = aKey / ALPHA_STEPS;
+      ctx.fillStyle = dark
+        ? `rgba(220,232,255,${alpha + 0.25})`
+        : `rgba(48,68,168,${alpha + 0.20})`;
+      ctx.fill(path);
+    });
+
+    if (animRef.current) animRef.current = requestAnimationFrame(draw);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -396,11 +417,39 @@ export default function StripeSection() {
     return () => window.removeEventListener("resize", resize);
   }, []);
 
+  // Run the canvas animation only while it is on screen and the tab is visible.
+  // A loop that never stops repaints a full-width canvas every frame and makes
+  // the whole home page stutter while scrolling.
   useEffect(() => {
-    if (animRef.current) cancelAnimationFrame(animRef.current);
-    lastTRef.current = performance.now();
-    animRef.current  = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(animRef.current);
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+    let onScreen = false;
+
+    const start = () => {
+      if (animRef.current || !onScreen || document.hidden) return;
+      lastTRef.current = performance.now();
+      animRef.current = requestAnimationFrame(draw);
+    };
+    const stop = () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+      animRef.current = null;
+    };
+
+    const observer = new IntersectionObserver(([entry]) => {
+      onScreen = entry.isIntersecting;
+      if (onScreen) start();
+      else stop();
+    }, { rootMargin: '100px 0px' });
+    observer.observe(canvas);
+
+    const onVisibility = () => (document.hidden ? stop() : start());
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', onVisibility);
+      stop();
+    };
   }, [draw]);
 
   return (
