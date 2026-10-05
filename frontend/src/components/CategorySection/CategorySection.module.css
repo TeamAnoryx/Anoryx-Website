@@ -662,3 +662,9 @@
     color: var(--color-secondary);
     font-weight: 600;
 }
+
+/* Equal-width card buttons; labels stay on one line. */
+.cardButton {
+    min-width: 184px;
+    white-space: nowrap;
+}

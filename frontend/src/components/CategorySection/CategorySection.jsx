@@ -79,7 +79,7 @@ export default function CategorySection() {
                   <p className={styles.cardDescription}>{p.tagline}</p>
 
                   <Link to={`/products/${p.slug}`} className={`${styles.cardButton} ${styles[t.btnClass]}`}>
-                    Explore {p.shortName}
+                    {p.buttonLabel}
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M5 12h14M12 5l7 7-7 7" />
                     </svg>

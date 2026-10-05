@@ -32,6 +32,7 @@ export const contactHref = (slug) => (slug ? `/contact?product=${slug}` : '/cont
 export const PRODUCTS = [
   {
     slug: 'sentinel',
+    buttonLabel: 'Explore Sentinel', // short label for card buttons
     name: 'Anoryx Sentinel',
     shortName: 'Sentinel',
     category: 'Zero-Trust AI Gateway',
@@ -96,6 +97,7 @@ export const PRODUCTS = [
   },
   {
     slug: 'delta',
+    buttonLabel: 'Explore Delta', // short label for card buttons
     name: 'Anoryx Delta',
     shortName: 'Delta',
     category: 'AI FinOps & Financial Governance',
@@ -135,6 +137,7 @@ export const PRODUCTS = [
   },
   {
     slug: 'rendly',
+    buttonLabel: 'Explore Rendly', // short label for card buttons
     name: 'Anoryx Rendly',
     shortName: 'Rendly',
     category: 'Secure Enterprise Collaboration',
@@ -175,6 +178,7 @@ export const PRODUCTS = [
   },
   {
     slug: 'orchestration',
+    buttonLabel: 'Explore the hub', // short label for card buttons
     name: 'Anoryx Orchestration Layer',
     shortName: 'Orchestration Layer',
     category: 'The Connective Fabric',
