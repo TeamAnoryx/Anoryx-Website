@@ -50,7 +50,7 @@ export default function FoundersNote() {
           <div className={styles.heroInner}>
             <div className={styles.heroPortraitWrap}>
               <div className={styles.heroPortrait} aria-hidden>
-                <img src={founderImg} alt="" className={styles.heroPortraitImg} />
+                <img src={founderImg} alt="Afnan Pasha, Founder & CEO of Anoryx Tech Solutions" className={styles.heroPortraitImg} />
               </div>
             </div>
             <div className={styles.heroContent}>

@@ -10,15 +10,13 @@ import PlatformIntelligenceCore from './pages/platform/IntelligenceCore.jsx';
 import PlatformAutonomousAgentSystem from './pages/platform/AutonomousAgentSystem.jsx';
 import PlatformSecurityTrust from './pages/platform/SecurityTrust.jsx';
 import SolutionsEnterpriseAutomation from './pages/solutions/EnterpriseAutomation.jsx';
-import SolutionsAIInfrastructure from './pages/solutions/AIInfrastructure.jsx';
-import SolutionsPrivacyFirstAI from './pages/solutions/PrivacyFirstAI.jsx';
-import SolutionsAutonomousDecisionSystems from './pages/solutions/AutonomousDecisionSystems.jsx';
 import SolutionsIndustryApplications from './pages/solutions/IndustryApplications.jsx';
 import Solutions from './pages/solutions/Solutions.jsx';
 import CompanyAbout from './pages/company/About.jsx';
 import CompanyFoundersNote from './pages/company/FoundersNote.jsx';
 import CompanyVisionMission from './pages/company/VisionMission.jsx';
 import CompanyBusinessProposal from './pages/company/BusinessProposal.jsx';
+import NotFound from './pages/NotFound.jsx';
 import Contact from './pages/contact/Contact.jsx';
 import Products from './pages/products/Products.jsx';
 import ProductDetail from './pages/products/ProductDetail.jsx';
@@ -56,9 +54,6 @@ function App() {
           <Route path="/platform/security-trust" element={<PlatformSecurityTrust />} />
           <Route path="/solutions" element={<Solutions />} />
           <Route path="/solutions/enterprise-automation" element={<SolutionsEnterpriseAutomation />} />
-          <Route path="/solutions/ai-infrastructure" element={<SolutionsAIInfrastructure />} />
-          <Route path="/solutions/privacy-first-ai" element={<SolutionsPrivacyFirstAI />} />
-          <Route path="/solutions/autonomous-decision-systems" element={<SolutionsAutonomousDecisionSystems />} />
           <Route path="/solutions/industry-applications" element={<SolutionsIndustryApplications />} />
           <Route path="/company/about" element={<CompanyAbout />} />
           <Route path="/company/founders-note" element={<CompanyFoundersNote />} />
@@ -67,6 +62,7 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/products" element={<Products />} />
           <Route path="/products/:slug" element={<ProductDetail />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
         <Footer />

@@ -32,21 +32,6 @@ const STATIC_ROUTES = {
     description:
       'Automate enterprise workflows with AI agents that stay inside your security and cost policies, with every action logged for audit.',
   },
-  '/solutions/ai-infrastructure': {
-    title: 'AI Infrastructure | Anoryx Solutions',
-    description:
-      'A secure gateway, cost controls and orchestration for the models and agents your teams run, without rewriting application code.',
-  },
-  '/solutions/privacy-first-ai': {
-    title: 'Privacy-First AI Systems | Anoryx Solutions',
-    description:
-      'Use large language models without exposing sensitive data: Anoryx Sentinel masks personal data and secrets before prompts leave your network.',
-  },
-  '/solutions/autonomous-decision-systems': {
-    title: 'Autonomous Decision Systems | Anoryx Solutions',
-    description:
-      'Run AI agents that make decisions within guardrails you define, with spending limits, policy checks and a full audit trail.',
-  },
   '/solutions/industry-applications': {
     title: 'Industry Applications | Anoryx Solutions',
     description:
