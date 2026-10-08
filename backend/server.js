@@ -374,6 +374,8 @@ const SITE_URL = (process.env.SITE_URL || (isHosted ? 'https://anoryxtechsolutio
 // Gmail only sends as the signed-in account, so the sender defaults to SMTP_USER.
 const MAIL_FROM = process.env.SMTP_FROM || `"Anoryx Tech Solutions" <${process.env.SMTP_USER || CONTACT_EMAIL}>`;
 const PROPOSAL_PAGE_PATH = '/company/business-proposal';
+// Inbox that receives proposal access requests.
+const PROPOSAL_NOTIFY_EMAIL = process.env.PROPOSAL_NOTIFY_EMAIL || CONTACT_EMAIL;
 
 const proposalRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -498,7 +500,7 @@ app.post('/api/proposal-request', proposalRateLimiter, async (req, res) => {
     // so the visitor never waits on the mail server.
     sendMailSafe(
       {
-        to: CONTACT_EMAIL,
+        to: PROPOSAL_NOTIFY_EMAIL,
         replyTo: workEmail,
         subject: `[Anoryx] Proposal access request: ${fullName.replace(/[\r\n]+/g, ' ')} (${roleLabel})`,
         text: [
@@ -525,7 +527,11 @@ app.post('/api/proposal-request', proposalRateLimiter, async (req, res) => {
       reviewUrl
     ).then((sent) => {
       if (!sent) console.error(`Proposal request ${id}: team email not sent. Review link: ${reviewUrl}`);
-    });
+      return db.collection('proposal_requests').updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { teamEmailSent: sent, teamEmailTo: PROPOSAL_NOTIFY_EMAIL } }
+      );
+    }).catch((err) => console.error('Proposal request email status error:', err.message));
 
     res.status(200).json({
       success: true,
