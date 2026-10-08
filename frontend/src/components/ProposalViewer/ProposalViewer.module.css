@@ -646,3 +646,7 @@
 .viewerWrap:not(.expanded) .docName {
   display: none;
 }
+
+.errorBox button {
+  margin-top: 12px;
+}

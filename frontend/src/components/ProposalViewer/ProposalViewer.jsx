@@ -29,6 +29,29 @@ export const PROPOSAL_ROLES = [
   { value: 'other', label: 'Other' },
 ];
 
+/* The API runs on a host that sleeps when idle and restarts on deploy. While it is waking
+ * up, requests fail with a network error ("Failed to fetch") or a 5xx. Retry for about a
+ * minute before giving up, so visitors see a short wait instead of an error. */
+const RETRY_DELAYS_MS = [1500, 3000, 5000, 8000, 10000, 12000, 15000, 15000];
+const OFFLINE_MESSAGE = 'We could not reach the proposal server. Please check your connection and try again.';
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const isTransient = (status) => status === 429 || status >= 500;
+
+async function fetchResilient(url, options, { onRetry, isCancelled = () => false } = {}) {
+  for (let attempt = 0; ; attempt += 1) {
+    const last = attempt >= RETRY_DELAYS_MS.length;
+    try {
+      const res = await fetch(url, options);
+      if (!isTransient(res.status) || last) return res;
+    } catch {
+      if (last) throw new Error(OFFLINE_MESSAGE);
+    }
+    if (isCancelled()) throw new Error('cancelled');
+    onRetry?.();
+    await sleep(RETRY_DELAYS_MS[attempt]);
+  }
+}
+
 function readStoredAccess() {
   try {
     return localStorage.getItem(ACCESS_KEY) || '';
@@ -148,7 +171,7 @@ function RequestForm({ presetRole, lockedFrom, pageCount, onClose }) {
     setStatus('sending');
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/proposal-request`, {
+      const res = await fetchResilient(`${API_BASE}/api/proposal-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -242,6 +265,8 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
   const [pdf, setPdf] = useState(null);
   const [access, setAccess] = useState(null); // { name, expiresAt } when unlocked
   const [loadError, setLoadError] = useState('');
+  const [waking, setWaking] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [currentPage, setCurrentPage] = useState(1);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -276,20 +301,21 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
   // Load meta + the right document (full when the access token is valid, else preview).
   useEffect(() => {
     let cancelled = false;
+    const retry = { onRetry: () => !cancelled && setWaking(true), isCancelled: () => cancelled };
     (async () => {
       try {
         const token = takeAccessFromUrl() || readStoredAccess();
-        const metaRes = await fetch(`${API_BASE}/api/proposal/meta`);
+        const metaRes = await fetchResilient(`${API_BASE}/api/proposal/meta`, undefined, retry);
         const metaData = await metaRes.json().catch(() => ({}));
         if (!metaRes.ok) throw new Error(metaData.error || 'The proposal is not available right now.');
 
         let bytes;
         let unlocked = null;
         if (token) {
-          const check = await fetch(`${API_BASE}/api/proposal/access`, { headers: { Authorization: `Bearer ${token}` } });
+          const check = await fetchResilient(`${API_BASE}/api/proposal/access`, { headers: { Authorization: `Bearer ${token}` } }, retry);
           if (check.ok) {
             unlocked = await check.json();
-            const docRes = await fetch(`${API_BASE}/api/proposal/document`, { headers: { Authorization: `Bearer ${token}` } });
+            const docRes = await fetchResilient(`${API_BASE}/api/proposal/document`, { headers: { Authorization: `Bearer ${token}` } }, retry);
             if (docRes.ok) bytes = await docRes.arrayBuffer();
             else unlocked = null;
           } else if (check.status === 401) {
@@ -297,7 +323,7 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
           }
         }
         if (!bytes) {
-          const prevRes = await fetch(`${API_BASE}/api/proposal/preview`);
+          const prevRes = await fetchResilient(`${API_BASE}/api/proposal/preview`, undefined, retry);
           if (!prevRes.ok) throw new Error('The proposal preview could not be loaded.');
           bytes = await prevRes.arrayBuffer();
         }
@@ -312,12 +338,19 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
         setPdf(doc);
       } catch (err) {
         if (!cancelled) setLoadError(err.message || 'The proposal could not be loaded.');
+      } finally {
+        if (!cancelled) setWaking(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadAttempt]);
+
+  const retryLoad = () => {
+    setLoadError('');
+    setLoadAttempt((n) => n + 1);
+  };
 
   // Request popup: lock page scroll and close on Escape while it is open.
   useEffect(() => {
@@ -415,6 +448,7 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
       <div className={styles.viewerWrap}>
         <div className={styles.errorBox} role="alert">
           <p>{loadError}</p>
+          <button type="button" className={styles.toolbarBtn} onClick={retryLoad}>Try again</button>
           <p>
             You can also request the proposal by email:{' '}
             <a href="mailto:afnan.ceo@anoryxtechsolutions.com?subject=Business%20proposal%20request">afnan.ceo@anoryxtechsolutions.com</a>
@@ -481,7 +515,7 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
         {!pdf && (
           <div className={styles.loading}>
             <span className={styles.spinner} aria-hidden="true" />
-            Loading the proposal…
+            {waking ? 'Waking up the proposal server, this can take up to a minute…' : 'Loading the proposal…'}
           </div>
         )}
         {pdf &&

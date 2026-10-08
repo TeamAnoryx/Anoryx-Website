@@ -1,0 +1,17 @@
+# Pings the backend on Render every 10 minutes so the free instance does not go to sleep
+# (it sleeps after 15 idle minutes, and waking it takes ~30 s, which visitors see as
+# a slow or failed proposal load).
+name: Keep API awake
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping health endpoint
+        run: curl -fsS --max-time 120 --retry 2 https://anoryx-website.onrender.com/api/health
