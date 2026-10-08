@@ -394,12 +394,11 @@ app.post('/api/contact', async (req, res) => {
       });
     }
 
-    const transporter = getTransporter();
-    if (!transporter) {
-      console.warn('SMTP not configured (SMTP_USER/SMTP_PASS). Set them in .env to send emails.');
+    if (!mailConfigured()) {
+      console.warn('Email not configured (RESEND_API_KEY or SMTP_USER/SMTP_PASS). Set them in .env to send emails.');
       return res.status(200).json({
         success: true,
-        message: 'Message received. (Email not sent: SMTP not configured.)',
+        message: 'Message received. (Email not sent: email is not configured.)',
       });
     }
 
@@ -407,7 +406,6 @@ app.post('/api/contact', async (req, res) => {
     const productLabel = PRODUCT_INTEREST_LABELS[productInterest] || '';
 
     const mailOptions = {
-      from: process.env.SMTP_FROM || CONTACT_EMAIL,
       to: CONTACT_EMAIL,
       replyTo: workEmail,
       subject: `[Anoryx Contact] ${subjectLabel}${productLabel ? ` (${productLabel})` : ''} — ${String(fullName).replace(/[\r\n]+/g, ' ')}`,
@@ -429,7 +427,7 @@ app.post('/api/contact', async (req, res) => {
       ].filter(Boolean).join(''),
     };
 
-    await transporter.sendMail(mailOptions);
+    await deliverMail(mailOptions);
 
     res.status(200).json({
       success: true,
@@ -458,7 +456,7 @@ const isHosted = isProduction || Boolean(process.env.RENDER);
 const PUBLIC_API_URL = (process.env.PUBLIC_API_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 const SITE_URL = (process.env.SITE_URL || (isHosted ? 'https://anoryxtechsolutions.com' : 'http://localhost:3000')).replace(/\/$/, '');
 // Gmail only sends as the signed-in account, so the sender defaults to SMTP_USER.
-const MAIL_FROM = process.env.SMTP_FROM || `"Anoryx Tech Solutions" <${process.env.SMTP_USER || CONTACT_EMAIL}>`;
+const MAIL_FROM = process.env.MAIL_FROM || process.env.SMTP_FROM || `"Anoryx Tech Solutions" <${process.env.SMTP_USER || CONTACT_EMAIL}>`;
 const PROPOSAL_PAGE_PATH = '/company/business-proposal';
 // Inbox that receives proposal access requests.
 const PROPOSAL_NOTIFY_EMAIL = process.env.PROPOSAL_NOTIFY_EMAIL || CONTACT_EMAIL;
@@ -472,14 +470,48 @@ const proposalRateLimiter = rateLimit({
 });
 
 /** Send an email; in development without SMTP, log the important link instead. */
-async function sendMailSafe(options, devLinkLabel, devLink) {
+/* Render's free plan blocks outgoing SMTP (ports 25/465/587), so in production mail goes
+ * through Resend's HTTPS API when RESEND_API_KEY is set. SMTP stays as the fallback for
+ * local development and paid hosts. */
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const mailConfigured = () => Boolean(RESEND_API_KEY || getTransporter());
+
+async function sendViaResend({ from, to, replyTo, subject, text, html }) {
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from,
+      to: Array.isArray(to) ? to : [to],
+      ...(replyTo ? { reply_to: replyTo } : {}),
+      subject,
+      text,
+      html,
+    }),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Resend ${res.status}: ${body.slice(0, 300)}`);
+  }
+}
+
+/** Send one email (Resend API or SMTP). Throws when it could not be sent. */
+async function deliverMail(options) {
+  const message = { from: MAIL_FROM, ...options };
+  if (RESEND_API_KEY) return sendViaResend(message);
   const transporter = getTransporter();
-  if (!transporter) {
+  if (!transporter) throw new Error('Email is not configured (set RESEND_API_KEY or SMTP_USER/SMTP_PASS).');
+  return transporter.sendMail(message);
+}
+
+async function sendMailSafe(options, devLinkLabel, devLink) {
+  if (!mailConfigured()) {
     if (!isProduction && devLink) console.log(`[dev] ${devLinkLabel}: ${devLink}`);
     return false;
   }
   try {
-    await transporter.sendMail({ from: MAIL_FROM, ...options });
+    await deliverMail(options);
     return true;
   } catch (err) {
     console.error('Email send error:', err.message);
@@ -761,4 +793,4 @@ ensureDb().then((db) => {
   proposal.loadDocument(db).catch((err) => console.error('Proposal warm-up failed:', err.message));
 });
 // Open the mail connection early so the first code or notification goes out quickly.
-getTransporter()?.verify().catch((err) => console.error('SMTP warm-up failed:', err.message));
+if (!RESEND_API_KEY) getTransporter()?.verify().catch((err) => console.error('SMTP warm-up failed:', err.message));
