@@ -75,8 +75,11 @@ const authRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Create transporter (Gmail / SMTP)
+// Create transporter (Gmail / SMTP). Reused across requests so each email skips the
+// connection and login handshake.
+let transporter = null;
 function getTransporter() {
+  if (transporter) return transporter;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
@@ -86,12 +89,14 @@ function getTransporter() {
   if (!user || !pass) {
     return null;
   }
-  return nodemailer.createTransport({
+  transporter = nodemailer.createTransport({
     host,
     port,
     secure,
+    pool: true,
     auth: { user, pass },
   });
+  return transporter;
 }
 
 // ── Auth routes (require MongoDB + JWT_SECRET) ────────────────────────
@@ -361,13 +366,18 @@ const PROPOSAL_ROLES = {
   partner: 'Design partner / customer',
   other: 'Other',
 };
-const PUBLIC_API_URL = (process.env.PUBLIC_API_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
-const SITE_URL = (process.env.SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+// Render sets RENDER and RENDER_EXTERNAL_URL itself, so links in emails are correct there
+// even if PUBLIC_API_URL / SITE_URL were never configured.
+const isHosted = isProduction || Boolean(process.env.RENDER);
+const PUBLIC_API_URL = (process.env.PUBLIC_API_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+const SITE_URL = (process.env.SITE_URL || (isHosted ? 'https://anoryxtechsolutions.com' : 'http://localhost:3000')).replace(/\/$/, '');
+// Gmail only sends as the signed-in account, so the sender defaults to SMTP_USER.
+const MAIL_FROM = process.env.SMTP_FROM || `"Anoryx Tech Solutions" <${process.env.SMTP_USER || CONTACT_EMAIL}>`;
 const PROPOSAL_PAGE_PATH = '/company/business-proposal';
 
 const proposalRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 5,
+  max: 30,
   message: { success: false, error: 'Too many requests. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -386,7 +396,7 @@ async function sendMailSafe(options, devLinkLabel, devLink) {
     return false;
   }
   try {
-    await transporter.sendMail({ from: process.env.SMTP_FROM || CONTACT_EMAIL, ...options });
+    await transporter.sendMail({ from: MAIL_FROM, ...options });
     return true;
   } catch (err) {
     console.error('Email send error:', err.message);
@@ -434,7 +444,7 @@ app.get('/api/proposal/access', async (req, res) => {
   if (!db) return res.status(503).json({ success: false, error: 'Database not connected' });
   const request = await proposal.findAccess(db, bearerToken(req));
   if (!request) return res.status(401).json({ success: false, error: 'This access link is invalid or has expired.' });
-  res.json({ success: true, name: request.fullName, expiresAt: request.accessExpiresAt });
+  res.json({ success: true, name: request.fullName, email: request.workEmail, expiresAt: request.accessExpiresAt });
 });
 
 // GET /api/proposal/document — full PDF for approved requesters only
@@ -468,7 +478,7 @@ app.post('/api/proposal-request', proposalRateLimiter, async (req, res) => {
     if (!fullName || !EMAIL_REGEX.test(workEmail) || !role) {
       return res.status(400).json({
         success: false,
-        error: 'Please add your name, a valid work email and how you would like to be involved.',
+        error: 'Please add your name, a valid email address and how you would like to be involved.',
       });
     }
 
@@ -480,11 +490,13 @@ app.post('/api/proposal-request', proposalRateLimiter, async (req, res) => {
       });
     }
 
-    const { id, reviewToken } = await proposal.createRequest(db, { fullName, workEmail, organisation, role, message });
+    const { id, reviewToken, createdAt } = await proposal.createRequest(db, { fullName, workEmail, organisation, role, message });
     const reviewUrl = `${PUBLIC_API_URL}/api/proposal/review?id=${id}&token=${encodeURIComponent(reviewToken)}`;
     const roleLabel = PROPOSAL_ROLES[role];
 
-    await sendMailSafe(
+    // Reply as soon as the request is stored; the team email goes out in the background
+    // so the visitor never waits on the mail server.
+    sendMailSafe(
       {
         to: CONTACT_EMAIL,
         replyTo: workEmail,
@@ -511,10 +523,13 @@ app.post('/api/proposal-request', proposalRateLimiter, async (req, res) => {
       },
       'Review link',
       reviewUrl
-    );
+    ).then((sent) => {
+      if (!sent) console.error(`Proposal request ${id}: team email not sent. Review link: ${reviewUrl}`);
+    });
 
     res.status(200).json({
       success: true,
+      sentAt: createdAt,
       message: "Request sent. You'll get an email with your private access link once it's approved.",
     });
   } catch (err) {

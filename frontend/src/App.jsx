@@ -3,6 +3,7 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
 import Navbar from './components/Navbar/Navbar.jsx';
 import Footer from './components/Footer/Footer.jsx';
+import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary.jsx';
 import Home from './pages/Home.jsx';
 import PlatformOverview from './pages/platform/Overview.jsx';
 import PlatformArchitecturePage from './pages/platform/Architecture.jsx';
@@ -39,12 +40,14 @@ function ScrollToTop() {
 }
 
 function App() {
+  const { pathname } = useLocation();
   return (
     <AuthProvider>
       <div className="appLayout">
         <ScrollToTop />
         <Navbar />
       <main className="appMain">
+        <ErrorBoundary resetKey={pathname}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/platform/overview" element={<PlatformOverview />} />
@@ -64,6 +67,7 @@ function App() {
           <Route path="/products/:slug" element={<ProductDetail />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </ErrorBoundary>
       </main>
         <Footer />
       </div>

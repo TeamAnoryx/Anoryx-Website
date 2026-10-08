@@ -86,7 +86,7 @@ async function createRequest(db, fields) {
     reviewExpiresAt: new Date(now.getTime() + REVIEW_TTL_DAYS * 864e5),
     createdAt: now,
   });
-  return { id: insertedId.toString(), reviewToken };
+  return { id: insertedId.toString(), reviewToken, createdAt: now };
 }
 
 async function findRequestForReview(db, id, reviewToken, ObjectId) {

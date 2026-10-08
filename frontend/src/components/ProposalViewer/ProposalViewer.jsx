@@ -4,9 +4,15 @@
  * Visitors receive only the server-made preview (first pages). The remaining pages are
  * shown as blurred placeholders; scrolling into them reveals the request-access panel.
  * A visitor with an approved access link (?access=<token>) gets the full document.
+ *
+ * The document is view-only: no download link, no right-click or drag, print is blanked,
+ * and the pages are covered whenever the tab loses focus (e.g. a screenshot tool opens).
+ * Unlocked pages carry the reader's name and email as a watermark. A browser cannot fully
+ * block screen capture; these measures make it harder and make leaks traceable.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { warmUpApi } from '../../context/AuthContext.jsx';
 import styles from './ProposalViewer.module.css';
@@ -46,7 +52,15 @@ function takeAccessFromUrl() {
   return token;
 }
 
-function PdfPage({ pdf, pageNumber, width }) {
+function Watermark({ text }) {
+  return (
+    <div className={styles.watermark} aria-hidden="true">
+      {Array.from({ length: 12 }, (_, i) => <span key={i}>{text}</span>)}
+    </div>
+  );
+}
+
+function PdfPage({ pdf, pageNumber, width, watermark }) {
   const canvasRef = useRef(null);
   const holderRef = useRef(null);
   const [visible, setVisible] = useState(false);
@@ -86,6 +100,7 @@ function PdfPage({ pdf, pageNumber, width }) {
   return (
     <div ref={holderRef} className={styles.page} style={{ aspectRatio: `1 / ${ratio}`, width: width || undefined }} data-page={pageNumber}>
       <canvas ref={canvasRef} className={styles.canvas} aria-label={`Proposal page ${pageNumber}`} />
+      {watermark && <Watermark text={watermark} />}
       {!visible && <div className={styles.pageSkeleton} aria-hidden="true" />}
     </div>
   );
@@ -109,10 +124,13 @@ function LockedPage({ number, width }) {
   );
 }
 
-function RequestForm({ presetRole, lockedFrom, pageCount }) {
-  const [form, setForm] = useState({ fullName: '', workEmail: '', organisation: '', role: presetRole || '', message: '' });
+const emptyForm = (role) => ({ fullName: '', workEmail: '', organisation: '', role: role || '', message: '' });
+
+function RequestForm({ presetRole, lockedFrom, pageCount, onClose }) {
+  const [form, setForm] = useState(() => emptyForm(presetRole));
   const [status, setStatus] = useState('idle'); // idle | sending | sent | error
   const [error, setError] = useState('');
+  const [sentAt, setSentAt] = useState(null);
 
   useEffect(() => {
     if (presetRole) setForm((f) => ({ ...f, role: presetRole }));
@@ -124,7 +142,7 @@ function RequestForm({ presetRole, lockedFrom, pageCount }) {
     e.preventDefault();
     if (!form.fullName.trim() || !EMAIL_REGEX.test(form.workEmail.trim()) || !form.role) {
       setStatus('error');
-      setError('Please add your name, a valid work email and how you would like to be involved.');
+      setError('Please add your name, a valid email address and how you would like to be involved.');
       return;
     }
     setStatus('sending');
@@ -137,11 +155,19 @@ function RequestForm({ presetRole, lockedFrom, pageCount }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Could not send your request.');
+      setSentAt(data.sentAt ? new Date(data.sentAt) : new Date());
       setStatus('sent');
     } catch (err) {
       setStatus('error');
       setError(err.message || 'Could not send your request. Please try again.');
     }
+  };
+
+  // Keep who they are, clear the rest, so another request is quick to send.
+  const sendAnother = () => {
+    setForm((f) => ({ ...emptyForm(f.role), fullName: f.fullName, workEmail: f.workEmail, organisation: f.organisation }));
+    setStatus('idle');
+    setError('');
   };
 
   if (status === 'sent') {
@@ -152,10 +178,18 @@ function RequestForm({ presetRole, lockedFrom, pageCount }) {
           <path d="M15 27l7 7 15-16" />
         </svg>
         <h3>Request sent</h3>
+        <p className={styles.sentMeta}>
+          Sent {sentAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })} to the{' '}
+          <strong>Anoryx Tech Solutions team</strong>
+        </p>
         <p>
-          We&apos;ll review it and email <strong>{form.workEmail}</strong> a private link that unlocks pages{' '}
+          Once it&apos;s approved we&apos;ll email <strong>{form.workEmail}</strong> a private link that unlocks pages{' '}
           {lockedFrom}–{pageCount}.
         </p>
+        <div className={styles.sentActions}>
+          <button type="button" className={styles.secondaryBtn} onClick={sendAnother}>Send another request</button>
+          <button type="button" className={styles.submit} onClick={onClose}>Done</button>
+        </div>
       </div>
     );
   }
@@ -168,7 +202,7 @@ function RequestForm({ presetRole, lockedFrom, pageCount }) {
           <input name="fullName" value={form.fullName} onChange={update} onFocus={warmUpApi} autoComplete="name" required />
         </label>
         <label>
-          Work email
+          Work / personal email
           <input name="workEmail" type="email" value={form.workEmail} onChange={update} autoComplete="email" required />
         </label>
         <label>
@@ -212,6 +246,8 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
   const [currentPage, setCurrentPage] = useState(1);
   const [panelOpen, setPanelOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [shielded, setShielded] = useState(false);
+  const autoOpenedRef = useRef(false);
 
   // Full-screen viewer: lock page scroll, close on Escape, keep the reader on the same page.
   useEffect(() => {
@@ -236,7 +272,6 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
       if (target && scrollRef.current) scrollRef.current.scrollTop = target.offsetTop - 16;
     }));
   }, [currentPage]);
-  const [fullBlobUrl, setFullBlobUrl] = useState('');
 
   // Load meta + the right document (full when the access token is valid, else preview).
   useEffect(() => {
@@ -269,7 +304,6 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
 
         const pdfjs = await import('pdfjs-dist');
         pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-        if (unlocked) setFullBlobUrl(URL.createObjectURL(new Blob([bytes.slice(0)], { type: 'application/pdf' })));
         const doc = await pdfjs.getDocument({ data: new Uint8Array(bytes) }).promise;
         if (cancelled) return;
         setMeta({ pageCount: metaData.pageCount, previewPages: metaData.previewPages });
@@ -285,7 +319,49 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
     };
   }, []);
 
-  useEffect(() => () => fullBlobUrl && URL.revokeObjectURL(fullBlobUrl), [fullBlobUrl]);
+  // Request popup: lock page scroll and close on Escape while it is open.
+  useEffect(() => {
+    if (!panelOpen) return undefined;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => e.key === 'Escape' && setPanelOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [panelOpen]);
+
+  // View-only: block save/print shortcuts, and cover the pages whenever the tab is hidden,
+  // loses focus (screenshot and recording tools take focus) or Print Screen is pressed.
+  useEffect(() => {
+    const cover = () => setShielded(true);
+    const uncover = () => !document.hidden && document.hasFocus() && setShielded(false);
+    const onKeyDown = (e) => {
+      const key = (e.key || '').toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && (key === 's' || key === 'p')) e.preventDefault();
+      if (e.key === 'PrintScreen' || (e.metaKey && e.shiftKey && ['3', '4', '5', 's'].includes(key))) cover();
+    };
+    const onKeyUp = (e) => {
+      if (e.key !== 'PrintScreen') return;
+      cover();
+      navigator.clipboard?.writeText('').catch(() => {});
+      setTimeout(uncover, 1500);
+    };
+    const onVisibility = () => (document.hidden ? cover() : uncover());
+    window.addEventListener('blur', cover);
+    window.addEventListener('focus', uncover);
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('blur', cover);
+      window.removeEventListener('focus', uncover);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, []);
 
   // Page width follows the viewer width.
   useEffect(() => {
@@ -315,7 +391,11 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
     setCurrentPage(page);
     if (lockedRef.current && !access) {
       const reached = lockedRef.current.offsetTop < el.scrollTop + el.clientHeight * 0.8;
-      if (reached) setPanelOpen(true);
+      // Open the request popup once when the reader first reaches the locked pages.
+      if (reached && !autoOpenedRef.current) {
+        autoOpenedRef.current = true;
+        setPanelOpen(true);
+      }
     }
   }, [access]);
 
@@ -323,8 +403,12 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
   useEffect(() => {
     if (!requestSignal || access) return;
     setPanelOpen(true);
-    wrapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [requestSignal, access]);
+
+  const watermark = access
+    ? `${access.name} · ${access.email || ''} · Confidential`
+    : 'Anoryx Tech Solutions · Confidential preview';
+  const blockAction = (e) => e.preventDefault();
 
   if (loadError) {
     return (
@@ -341,7 +425,13 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
   }
 
   return (
-    <div ref={wrapRef} className={`${styles.viewerWrap} ${expanded ? styles.expanded : ''}`} role={expanded ? 'dialog' : undefined} aria-modal={expanded || undefined} aria-label={expanded ? 'Business proposal viewer' : undefined}>
+    <div
+      ref={wrapRef}
+      className={`${styles.viewerWrap} ${expanded ? styles.expanded : ''}`}
+      onContextMenu={blockAction}
+      onDragStart={blockAction}
+      onCopy={blockAction}
+      role={expanded ? 'dialog' : undefined} aria-modal={expanded || undefined} aria-label={expanded ? 'Business proposal viewer' : undefined}>
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
           <span className={styles.docIcon} aria-hidden="true">
@@ -369,12 +459,7 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
             </span>
           )}
           {access ? (
-            <>
-              <span className={styles.unlockedBadge}>Unlocked</span>
-              {fullBlobUrl && (
-                <a className={styles.toolbarBtn} href={fullBlobUrl} download="Anoryx-Business-Proposal.pdf">Download</a>
-              )}
-            </>
+            <span className={styles.unlockedBadge}>Unlocked</span>
           ) : (
             meta && (
               <button type="button" className={styles.toolbarBtn} onClick={() => setPanelOpen(true)}>
@@ -401,7 +486,7 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
         )}
         {pdf &&
           Array.from({ length: renderedPages }, (_, i) => (
-            <PdfPage key={i} pdf={pdf} pageNumber={i + 1} width={width} />
+            <PdfPage key={i} pdf={pdf} pageNumber={i + 1} width={width} watermark={watermark} />
           ))}
         {pdf && lockedCount > 0 && (
           <div ref={lockedRef} className={styles.lockedZone}>
@@ -412,27 +497,44 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
         )}
         {access && (
           <p className={styles.accessNote}>
-            Shared with {access.name}. Access ends {new Date(access.expiresAt).toLocaleDateString()}. Please don&apos;t forward this document.
+            Shared with {access.name}. Access ends {new Date(access.expiresAt).toLocaleDateString()}. View only: please don&apos;t copy or share this document.
           </p>
         )}
       </div>
 
-      {!access && meta && (
-        <div className={`${styles.lockPanel} ${panelOpen ? styles.lockPanelOpen : ''}`} aria-hidden={!panelOpen}>
-          <div className={styles.lockPanelInner} inert={panelOpen ? undefined : ''}>
+      {shielded && pdf && (
+        <div className={styles.shield} aria-hidden="true" onClick={() => setShielded(false)}>
+          <span>Click here to keep reading</span>
+        </div>
+      )}
+
+      {!access && meta && createPortal(
+        <div
+          className={`${styles.modalOverlay} ${panelOpen ? styles.modalOpen : ''}`}
+          onMouseDown={(e) => e.target === e.currentTarget && setPanelOpen(false)}
+          aria-hidden={!panelOpen}
+        >
+          <div
+            className={styles.modal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="proposal-request-title"
+            inert={panelOpen ? undefined : ''}
+          >
             <button type="button" className={styles.closePanel} onClick={() => setPanelOpen(false)} aria-label="Close">×</button>
             <div className={styles.lockHead}>
               <span className={styles.lockIcon} aria-hidden="true">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
               </span>
               <div>
-                <h3>Pages {lockedFrom}–{meta.pageCount} are shared on request</h3>
+                <h3 id="proposal-request-title">Pages {lockedFrom}–{meta.pageCount} are shared on request</h3>
                 <p>The full proposal covers our go-to-market plan, unit economics and capital plan. Tell us who you are and we&apos;ll send you a private link.</p>
               </div>
             </div>
-            <RequestForm presetRole={presetRole} lockedFrom={lockedFrom} pageCount={meta.pageCount} />
+            <RequestForm presetRole={presetRole} lockedFrom={lockedFrom} pageCount={meta.pageCount} onClose={() => setPanelOpen(false)} />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

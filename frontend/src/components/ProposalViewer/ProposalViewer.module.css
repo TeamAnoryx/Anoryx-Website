@@ -12,6 +12,49 @@
   --page-h: min(calc(100vh - var(--navbar-height) - 110px), 980px);
   max-width: calc((var(--page-h) - 32px) / 1.414 + 32px);
   margin: 0 auto;
+  /* View-only: no text selection, callouts or image dragging. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Never print the proposal. */
+@media print {
+  .viewerWrap {
+    display: none !important;
+  }
+}
+
+/* Covers the pages while the tab is hidden or unfocused (screenshot / recording tools). */
+.shield {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  background: rgba(14, 21, 40, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  color: #CBD5E1;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.watermark {
+  position: absolute;
+  inset: -25%;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: space-around;
+  justify-content: space-around;
+  gap: 12% 10%;
+  transform: rotate(-30deg);
+  pointer-events: none;
+  color: #091E42;
+  opacity: 0.09;
+  font-size: clamp(9px, 1.4vw, 15px);
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 /* Full-screen reader */
@@ -279,48 +322,45 @@
   color: #8AB4FF;
 }
 
-/* ── Lock panel (slides up over the viewer) ──────────────── */
-.lockPanel {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 0 12px 12px;
-  transform: translateY(105%);
-  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
-  pointer-events: none;
-}
-
-.lockPanelOpen {
-  transform: translateY(0);
-  pointer-events: auto;
-}
-
-.lockPanel::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 140%;
-  background: linear-gradient(180deg, rgba(14, 21, 40, 0) 0%, rgba(14, 21, 40, 0.85) 35%, #0E1528 70%);
-  pointer-events: none;
+/* ── Request popup (centred over the page) ────────────────── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(9, 14, 30, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   opacity: 0;
-  transition: opacity 0.4s ease;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
 }
 
-.lockPanelOpen::before {
+.modalOpen {
   opacity: 1;
+  visibility: visible;
 }
 
-.lockPanelInner {
+.modal {
   position: relative;
-  max-height: min(70vh, 640px);
+  width: 100%;
+  max-width: 600px;
+  max-height: calc(100dvh - 32px);
   overflow-y: auto;
-  padding: 22px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35);
+  overscroll-behavior: contain;
+  padding: 26px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  transform: translateY(16px) scale(0.97);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.modalOpen .modal {
+  transform: none;
 }
 
 .closePanel {
@@ -487,6 +527,41 @@
   line-height: 1.6;
 }
 
+.sent .sentMeta {
+  margin: 0 0 10px;
+  color: #172B4D;
+}
+
+.sentActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.sentActions > button {
+  flex: 1;
+  margin-top: 0;
+}
+
+.secondaryBtn {
+  padding: 13px;
+  border: 1.5px solid #DFE1E6;
+  border-radius: 10px;
+  font: inherit;
+  font-family: var(--font-family-heading);
+  font-size: 15px;
+  font-weight: 700;
+  color: #0052CC;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.secondaryBtn:hover {
+  border-color: #0052CC;
+  background: #F4F8FF;
+}
+
 .sentIcon {
   width: 56px;
   height: 56px;
@@ -533,9 +608,12 @@
     grid-template-columns: 1fr;
   }
 
-  .lockPanelInner {
-    padding: 18px 16px;
-    max-height: 66vh;
+  .modal {
+    padding: 20px 16px;
+  }
+
+  .sentActions {
+    flex-direction: column;
   }
 }
 
@@ -544,7 +622,8 @@
     animation: none;
   }
 
-  .lockPanel,
+  .modalOverlay,
+  .modal,
   .toolbarBtn,
   .submit {
     transition: none;
