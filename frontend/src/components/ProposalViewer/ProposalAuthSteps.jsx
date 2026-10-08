@@ -114,29 +114,29 @@ export function VerifyEmailStep() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  // Show the code box straight away; the request only stores the code and queues the email.
   const sendCode = async () => {
-    setBusy(true);
+    setSent(true);
     setError('');
     try {
       await postJson('/api/auth/email-code', {}, token);
-      setSent(true);
     } catch (err) {
+      setSent(false);
       setError(err.message);
-    } finally {
-      setBusy(false);
     }
   };
 
-  const verify = async (e) => {
-    e.preventDefault();
-    if (!/^\d{6}$/.test(code.trim())) {
+  const verify = async (e, value = code) => {
+    e?.preventDefault();
+    if (busy) return;
+    if (!/^\d{6}$/.test(value.trim())) {
       setError('Enter the 6-digit code from the email.');
       return;
     }
     setBusy(true);
     setError('');
     try {
-      const data = await postJson('/api/auth/verify-email', { code: code.trim() }, token);
+      const data = await postJson('/api/auth/verify-email', { code: value.trim() }, token);
       login(data.token, data.user);
     } catch (err) {
       setError(err.message);
@@ -159,7 +159,11 @@ export function VerifyEmailStep() {
             autoComplete="one-time-code"
             maxLength={6}
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+            onChange={(e) => {
+              const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+              setCode(value);
+              if (value.length === 6) verify(null, value); // confirm as soon as the code is complete
+            }}
             placeholder="6-digit code"
             aria-label="Verification code"
             className={styles.codeInput}

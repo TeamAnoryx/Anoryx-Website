@@ -8,6 +8,7 @@
  */
 
 const crypto = require('crypto');
+const zlib = require('zlib');
 const { Binary } = require('mongodb');
 const { PDFDocument } = require('pdf-lib');
 
@@ -24,16 +25,34 @@ const safeEqual = (a, b) => {
   return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
 };
 
-let cache = null; // { version, full: Buffer, preview: Buffer, pageCount }
+let cache = null; // { version, full, fullBr, preview, previewBr, pageCount }
+let loading = null; // in-flight build, shared by concurrent requests
+
+const brotli = (buffer) =>
+  new Promise((resolve, reject) =>
+    zlib.brotliCompress(buffer, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 9 } }, (err, out) =>
+      err ? reject(err) : resolve(out)
+    )
+  );
+
+const VERSION_CHECK_MS = 60 * 1000;
+let checkedAt = 0;
 
 async function loadDocument(db) {
+  // A re-upload is picked up within a minute; until then skip the database round trip.
+  if (cache && Date.now() - checkedAt < VERSION_CHECK_MS) return cache;
   const doc = await db.collection('documents').findOne(
     { _id: DOC_ID },
     { projection: { version: 1 } }
   );
   if (!doc) return null;
+  checkedAt = Date.now();
   if (cache && cache.version === doc.version) return cache;
+  if (!loading) loading = buildCache(db).finally(() => { loading = null; });
+  return loading;
+}
 
+async function buildCache(db) {
   const full = await db.collection('documents').findOne({ _id: DOC_ID });
   const fullBuffer = Buffer.from(full.data.buffer);
   const source = await PDFDocument.load(fullBuffer);
@@ -46,10 +65,14 @@ async function loadDocument(db) {
   pages.forEach((p) => preview.addPage(p));
   preview.setTitle('Anoryx Business Proposal (preview)');
 
+  const previewBuffer = Buffer.from(await preview.save());
+  const [fullBr, previewBr] = await Promise.all([brotli(fullBuffer), brotli(previewBuffer)]);
   cache = {
     version: full.version,
     full: fullBuffer,
-    preview: Buffer.from(await preview.save()),
+    fullBr,
+    preview: previewBuffer,
+    previewBr,
     pageCount,
   };
   return cache;
@@ -72,6 +95,7 @@ async function saveDocument(db, buffer, filename) {
     { upsert: true }
   );
   cache = null;
+  checkedAt = 0;
   return parsed.getPageCount();
 }
 

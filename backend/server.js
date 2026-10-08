@@ -307,7 +307,8 @@ app.post('/api/auth/email-code', authMiddleware, emailCodeLimiter, async (req, r
       { $set: { codeHash: hashCode(req.userId, code), expiresAt: new Date(Date.now() + CODE_TTL_MS), attempts: 0 } },
       { upsert: true }
     );
-    const sent = await sendMailSafe(
+    // Reply straight away; the mail server handshake takes seconds, so send in the background.
+    sendMailSafe(
       {
         to: req.userEmail,
         subject: `${code} is your Anoryx verification code`,
@@ -322,10 +323,9 @@ app.post('/api/auth/email-code', authMiddleware, emailCodeLimiter, async (req, r
       },
       'Verification code',
       code
-    );
-    if (!sent && isProduction) {
-      return res.status(502).json({ success: false, error: 'We could not send the code. Please try again shortly.' });
-    }
+    ).then((sent) => {
+      if (!sent) console.error(`Verification code email to user ${req.userId} not sent.`);
+    });
     res.json({ success: true, email: req.userEmail });
   } catch (err) {
     console.error('Email code error:', err);
@@ -488,6 +488,16 @@ async function sendMailSafe(options, devLinkLabel, devLink) {
   }
 }
 
+/** PDFs are sent brotli-compressed when the browser accepts it (~45% smaller here). */
+function sendPdf(req, res, raw, brotli, cacheControl) {
+  res.set({ 'Content-Type': 'application/pdf', 'Cache-Control': cacheControl, Vary: 'Accept-Encoding' });
+  if (brotli && /\bbr\b/.test(req.headers['accept-encoding'] || '')) {
+    res.set('Content-Encoding', 'br');
+    return res.send(brotli);
+  }
+  return res.send(raw);
+}
+
 // GET /api/proposal/meta — page counts for the viewer
 app.get('/api/proposal/meta', async (req, res) => {
   const db = await ensureDb();
@@ -513,8 +523,7 @@ app.get('/api/proposal/preview', async (req, res) => {
   try {
     const doc = await proposal.loadDocument(db);
     if (!doc) return res.status(404).end();
-    res.set({ 'Content-Type': 'application/pdf', 'Cache-Control': 'public, max-age=600' });
-    res.send(doc.preview);
+    sendPdf(req, res, doc.preview, doc.previewBr, 'public, max-age=600');
   } catch (err) {
     console.error('Proposal preview error:', err);
     res.status(500).end();
@@ -548,8 +557,7 @@ app.get('/api/proposal/document', authMiddleware, requireVerifiedEmail, async (r
     if (!request) return res.status(403).json({ success: false, error: 'You do not have access to the full proposal yet.' });
     const doc = await proposal.loadDocument(db);
     if (!doc) return res.status(404).end();
-    res.set({ 'Content-Type': 'application/pdf', 'Cache-Control': 'private, no-store' });
-    res.send(doc.full);
+    sendPdf(req, res, doc.full, doc.fullBr, 'private, no-store');
   } catch (err) {
     console.error('Proposal document error:', err);
     res.status(500).end();
@@ -747,5 +755,10 @@ app.listen(PORT, () => {
   console.log(`Anoryx backend running on http://localhost:${PORT}`);
 });
 ensureDb().then((db) => {
-  if (db) console.log('MongoDB connected');
+  if (!db) return;
+  console.log('MongoDB connected');
+  // Parse and compress the proposal now so the first visitor doesn't wait for it.
+  proposal.loadDocument(db).catch((err) => console.error('Proposal warm-up failed:', err.message));
 });
+// Open the mail connection early so the first code or notification goes out quickly.
+getTransporter()?.verify().catch((err) => console.error('SMTP warm-up failed:', err.message));

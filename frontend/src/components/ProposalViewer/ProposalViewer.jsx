@@ -262,6 +262,9 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
   const { token, user, emailVerified } = useAuth();
   const session = token && emailVerified ? token : ''; // only confirmed sessions can unlock
   const [pendingSince, setPendingSince] = useState(null);
+  const metaRef = useRef(null);
+  const previewBytesRef = useRef(null);
+  const loadedKindRef = useRef(null); // 'preview' | 'full': which document is on screen
   const wrapRef = useRef(null);
   const scrollRef = useRef(null);
   const lockedRef = useRef(null);
@@ -305,50 +308,85 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
   useEffect(clearLegacyAccess, []);
 
   // Load meta + the right document: full for a signed-in account with a grant, else preview.
-  // Runs again on sign-in / sign-out, so signing out locks the document immediately.
+  // Runs again on sign-in / sign-out. Signing out locks the document immediately; signing in
+  // keeps the preview on screen while the grant check and full document load in parallel.
   useEffect(() => {
     let cancelled = false;
     const retry = { onRetry: () => !cancelled && setWaking(true), isCancelled: () => cancelled };
-    setPdf(null);
-    setAccess(null);
-    setPendingSince(null);
+    if (!session) {
+      setAccess(null);
+      setPendingSince(null);
+      if (loadedKindRef.current === 'full') {
+        loadedKindRef.current = null;
+        setPdf(null);
+      }
+    }
     (async () => {
       try {
-        const metaRes = await fetchResilient(`${API_BASE}/api/proposal/meta`, undefined, retry);
-        const metaData = await metaRes.json().catch(() => ({}));
-        if (!metaRes.ok) throw new Error(metaData.error || 'The proposal is not available right now.');
+        const auth = session ? { headers: { Authorization: `Bearer ${session}` } } : null;
+        const json = (res) => (res.ok ? res.json().catch(() => ({})) : {});
+        // Signed-out visitors always get the preview, so start downloading it right away.
+        if (!auth && !previewBytesRef.current) {
+          previewBytesRef.current = fetchResilient(`${API_BASE}/api/proposal/preview`, undefined, retry).then((res) => {
+            if (!res.ok) throw new Error('The proposal preview could not be loaded.');
+            return res.arrayBuffer();
+          });
+          previewBytesRef.current.catch(() => {}); // handled where it is awaited below
+        }
+        const [metaData, status, fullBytes] = await Promise.all([
+          metaRef.current ||
+            fetchResilient(`${API_BASE}/api/proposal/meta`, undefined, retry).then(async (res) => {
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok) throw new Error(data.error || 'The proposal is not available right now.');
+              return data;
+            }),
+          auth ? fetchResilient(`${API_BASE}/api/proposal/status`, auth, retry).then(json) : {},
+          // Asked for alongside the status check; the server answers 403 when there is no grant.
+          auth
+            ? fetchResilient(`${API_BASE}/api/proposal/document`, auth, retry).then((res) => (res.ok ? res.arrayBuffer() : null))
+            : null,
+        ]);
+        if (cancelled) return;
+        metaRef.current = metaData;
+        const unlocked = status.access && fullBytes ? status.access : null;
+        const kind = unlocked ? 'full' : 'preview';
 
-        let bytes;
-        let unlocked = null;
-        let pending = null;
-        if (session) {
-          const auth = { headers: { Authorization: `Bearer ${session}` } };
-          const statusRes = await fetchResilient(`${API_BASE}/api/proposal/status`, auth, retry);
-          const status = statusRes.ok ? await statusRes.json().catch(() => ({})) : {};
-          pending = status.pendingSince || null;
-          if (status.access) {
-            const docRes = await fetchResilient(`${API_BASE}/api/proposal/document`, auth, retry);
-            if (docRes.ok) {
-              bytes = await docRes.arrayBuffer();
-              unlocked = status.access;
+        let doc = null;
+        if (loadedKindRef.current !== kind) {
+          let bytes = fullBytes;
+          if (!unlocked) {
+            if (!previewBytesRef.current) {
+              const prevRes = await fetchResilient(`${API_BASE}/api/proposal/preview`, undefined, retry);
+              if (!prevRes.ok) throw new Error('The proposal preview could not be loaded.');
+              previewBytesRef.current = prevRes.arrayBuffer();
             }
+            try {
+              previewBytesRef.current = await previewBytesRef.current;
+            } catch (err) {
+              previewBytesRef.current = null; // let "Try again" download it afresh
+              throw err;
+            }
+            bytes = previewBytesRef.current.slice(0); // pdf.js takes ownership of the buffer
+          }
+          const pdfjs = await import('pdfjs-dist');
+          pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+          doc = await pdfjs.getDocument({ data: new Uint8Array(bytes) }).promise;
+          if (cancelled) {
+            doc.destroy();
+            return;
           }
         }
-        if (!bytes) {
-          const prevRes = await fetchResilient(`${API_BASE}/api/proposal/preview`, undefined, retry);
-          if (!prevRes.ok) throw new Error('The proposal preview could not be loaded.');
-          bytes = await prevRes.arrayBuffer();
-        }
-
-        const pdfjs = await import('pdfjs-dist');
-        pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-        const doc = await pdfjs.getDocument({ data: new Uint8Array(bytes) }).promise;
-        if (cancelled) return;
         setMeta({ pageCount: metaData.pageCount, previewPages: metaData.previewPages });
         setAccess(unlocked);
-        setPendingSince(pending);
+        setPendingSince(status.pendingSince || null);
         onAccess?.(unlocked);
-        setPdf(doc);
+        if (doc) {
+          loadedKindRef.current = kind;
+          setPdf((prev) => {
+            prev?.destroy();
+            return doc;
+          });
+        }
       } catch (err) {
         if (!cancelled) setLoadError(err.message || 'The proposal could not be loaded.');
       } finally {
@@ -361,6 +399,7 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
   }, [loadAttempt, session]);
 
   const retryLoad = () => {
+    loadedKindRef.current = null;
     setLoadError('');
     setLoadAttempt((n) => n + 1);
   };
