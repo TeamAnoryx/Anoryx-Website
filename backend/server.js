@@ -470,39 +470,72 @@ const proposalRateLimiter = rateLimit({
 });
 
 /** Send an email; in development without SMTP, log the important link instead. */
-/* Render's free plan blocks outgoing SMTP (ports 25/465/587), so in production mail goes
- * through Resend's HTTPS API when RESEND_API_KEY is set. SMTP stays as the fallback for
- * local development and paid hosts. */
+/* Render's free plan blocks outgoing SMTP (ports 25/465/587). Mail therefore goes over
+ * HTTPS, trying each configured sender in turn until one succeeds:
+ *   1. RESEND_API_KEY — Resend's email API (main sender),
+ *   2. MAIL_RELAY_URL + MAIL_RELAY_SECRET — backup: our Vercel function
+ *      (frontend/api/send-mail.js) that sends through the GoDaddy mailbox,
+ *   3. SMTP_USER / SMTP_PASS — direct SMTP (local development, paid hosts). */
+const MAIL_RELAY_URL = process.env.MAIL_RELAY_URL;
+const MAIL_RELAY_SECRET = process.env.MAIL_RELAY_SECRET;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const mailConfigured = () => Boolean(RESEND_API_KEY || getTransporter());
+const MAIL_TIMEOUT_MS = 20000;
 
-async function sendViaResend({ from, to, replyTo, subject, text, html }) {
-  const res = await fetch('https://api.resend.com/emails', {
+async function postJson(url, headers, body) {
+  const res = await fetch(url, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from,
-      to: Array.isArray(to) ? to : [to],
-      ...(replyTo ? { reply_to: replyTo } : {}),
-      subject,
-      text,
-      html,
-    }),
-    signal: AbortSignal.timeout(15000),
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(MAIL_TIMEOUT_MS),
   });
   if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`Resend ${res.status}: ${body.slice(0, 300)}`);
+    const text = await res.text().catch(() => '');
+    throw new Error(`${res.status} ${text.slice(0, 300)}`);
   }
 }
 
-/** Send one email (Resend API or SMTP). Throws when it could not be sent. */
+const MAIL_SENDERS = [
+  RESEND_API_KEY && {
+    name: 'resend',
+    send: (m) => postJson('https://api.resend.com/emails', { Authorization: `Bearer ${RESEND_API_KEY}` }, {
+      from: m.from,
+      to: [].concat(m.to),
+      ...(m.replyTo ? { reply_to: m.replyTo } : {}),
+      subject: m.subject,
+      text: m.text,
+      html: m.html,
+    }),
+  },
+  MAIL_RELAY_URL && MAIL_RELAY_SECRET && {
+    name: 'relay',
+    send: (m) => postJson(MAIL_RELAY_URL, { Authorization: `Bearer ${MAIL_RELAY_SECRET}` }, m),
+  },
+  {
+    name: 'smtp',
+    available: () => Boolean(getTransporter()),
+    send: (m) => getTransporter().sendMail(m),
+  },
+].filter(Boolean);
+
+const activeSenders = () => MAIL_SENDERS.filter((s) => !s.available || s.available());
+const mailConfigured = () => activeSenders().length > 0;
+
+/** Send one email through the first sender that works. Throws when all of them fail. */
 async function deliverMail(options) {
   const message = { from: MAIL_FROM, ...options };
-  if (RESEND_API_KEY) return sendViaResend(message);
-  const transporter = getTransporter();
-  if (!transporter) throw new Error('Email is not configured (set RESEND_API_KEY or SMTP_USER/SMTP_PASS).');
-  return transporter.sendMail(message);
+  const senders = activeSenders();
+  if (!senders.length) throw new Error('Email is not configured.');
+  const errors = [];
+  for (const sender of senders) {
+    try {
+      await sender.send(message);
+      return sender.name;
+    } catch (err) {
+      errors.push(`${sender.name}: ${err.message}`);
+      console.error(`Email via ${sender.name} failed:`, err.message);
+    }
+  }
+  throw new Error(errors.join(' | '));
 }
 
 async function sendMailSafe(options, devLinkLabel, devLink) {
@@ -793,4 +826,4 @@ ensureDb().then((db) => {
   proposal.loadDocument(db).catch((err) => console.error('Proposal warm-up failed:', err.message));
 });
 // Open the mail connection early so the first code or notification goes out quickly.
-if (!RESEND_API_KEY) getTransporter()?.verify().catch((err) => console.error('SMTP warm-up failed:', err.message));
+if (activeSenders()[0]?.name === 'smtp') getTransporter()?.verify().catch((err) => console.error('SMTP warm-up failed:', err.message));
