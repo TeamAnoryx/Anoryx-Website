@@ -3,8 +3,8 @@
  *
  * The full PDF lives in MongoDB (collection `documents`), never in git or on the
  * website. Visitors get a preview made of the first PREVIEW_PAGES pages. The full
- * document is served only with an access token issued when the team approves a
- * request from the "Give access" email.
+ * document is served only to a signed-in visitor whose verified email has an approved
+ * request (the team approves from the "Give access" email).
  */
 
 const crypto = require('crypto');
@@ -102,44 +102,46 @@ async function findRequestForReview(db, id, reviewToken, ObjectId) {
   return request;
 }
 
-/** Approve: issues the requester's access token (returned once, stored hashed). */
+/** Approve: unlocks the full proposal for the requester's email for ACCESS_TTL_DAYS. */
 async function approveRequest(db, request) {
-  const accessToken = randomToken();
   const expiresAt = new Date(Date.now() + ACCESS_TTL_DAYS * 864e5);
   await db.collection('proposal_requests').updateOne(
     { _id: request._id },
-    {
-      $set: {
-        status: 'approved',
-        accessTokenHash: hashToken(accessToken),
-        accessExpiresAt: expiresAt,
-        decidedAt: new Date(),
-      },
-    }
+    { $set: { status: 'approved', accessExpiresAt: expiresAt, decidedAt: new Date() } }
   );
-  return { accessToken, expiresAt };
+  return { expiresAt };
 }
 
 async function denyRequest(db, request) {
   await db.collection('proposal_requests').updateOne(
     { _id: request._id },
-    { $set: { status: 'denied', decidedAt: new Date() }, $unset: { accessTokenHash: '' } }
+    { $set: { status: 'denied', decidedAt: new Date() } }
   );
 }
 
-/** Valid access token → the approved request; otherwise null. */
-async function findAccess(db, accessToken) {
-  if (!accessToken || typeof accessToken !== 'string' || accessToken.length > 200) return null;
-  const request = await db.collection('proposal_requests').findOne({
-    accessTokenHash: hashToken(accessToken),
-    status: 'approved',
-  });
-  if (!request || request.accessExpiresAt < new Date()) return null;
-  await db.collection('proposal_requests').updateOne(
-    { _id: request._id },
-    { $set: { lastViewedAt: new Date() }, $inc: { views: 1 } }
+/** The newest unexpired approved request for this (verified) email, or null. */
+async function findGrant(db, email, { countView = false } = {}) {
+  if (!email) return null;
+  const request = await db.collection('proposal_requests').findOne(
+    { workEmail: String(email).toLowerCase(), status: 'approved', accessExpiresAt: { $gt: new Date() } },
+    { sort: { accessExpiresAt: -1 } }
   );
+  if (request && countView) {
+    await db.collection('proposal_requests').updateOne(
+      { _id: request._id },
+      { $set: { lastViewedAt: new Date() }, $inc: { views: 1 } }
+    );
+  }
   return request;
+}
+
+/** The newest pending request for this email, or null. */
+async function findPending(db, email) {
+  if (!email) return null;
+  return db.collection('proposal_requests').findOne(
+    { workEmail: String(email).toLowerCase(), status: 'pending' },
+    { sort: { createdAt: -1 } }
+  );
 }
 
 module.exports = {
@@ -151,5 +153,6 @@ module.exports = {
   findRequestForReview,
   approveRequest,
   denyRequest,
-  findAccess,
+  findGrant,
+  findPending,
 };

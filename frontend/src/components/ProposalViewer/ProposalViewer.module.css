@@ -650,3 +650,117 @@
 .errorBox button {
   margin-top: 12px;
 }
+
+/* ── Sign-in and email confirmation steps (request popup) ── */
+.authStep h4 {
+  margin: 0 0 6px;
+  font-family: var(--font-family-heading);
+  font-size: 16px;
+  color: #091E42;
+}
+
+.authStep > p {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #42526E;
+}
+
+.googleBtn {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.orDivider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0;
+  font-size: 12px;
+  color: #6B778C;
+}
+
+.orDivider::before,
+.orDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #DFE1E6;
+}
+
+.inlineForm {
+  display: flex;
+  gap: 10px;
+}
+
+.inlineForm input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 15px;
+  padding: 10px 12px;
+  border: 1.5px solid #DFE1E6;
+  border-radius: 10px;
+  color: #091E42;
+}
+
+.inlineForm input:focus {
+  outline: none;
+  border-color: #2684FF;
+  box-shadow: 0 0 0 3px rgba(38, 132, 255, 0.2);
+}
+
+.inlineForm .submit {
+  width: auto;
+  margin-top: 0;
+  padding: 10px 20px;
+}
+
+.codeInput {
+  letter-spacing: 6px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.authLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 14px 0 0;
+}
+
+.authLinks button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: #0052CC;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.pendingNote {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #DEEBFF;
+  font-size: 13px;
+  color: #172B4D;
+}
+
+.formGrid input.readOnly {
+  background: #F4F5F7;
+  color: #42526E;
+}
+
+@media (max-width: 767px) {
+  .inlineForm {
+    flex-direction: column;
+  }
+
+  .inlineForm .submit {
+    width: 100%;
+  }
+}

@@ -157,7 +157,7 @@ export default function BusinessProposal() {
   const [requestRole, setRequestRole] = useState('');
   const [requestSignal, setRequestSignal] = useState(0);
   const [unlocked, setUnlocked] = useState(false);
-  const handleAccess = useCallback(() => setUnlocked(true), []);
+  const handleAccess = useCallback((access) => setUnlocked(Boolean(access)), []);
 
   usePageMeta({
     title: 'Business Proposal | Anoryx Tech Solutions',

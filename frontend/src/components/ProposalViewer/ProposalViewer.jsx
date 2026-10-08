@@ -3,7 +3,9 @@
  *
  * Visitors receive only the server-made preview (first pages). The remaining pages are
  * shown as blurred placeholders; scrolling into them reveals the request-access panel.
- * A visitor with an approved access link (?access=<token>) gets the full document.
+ * Requesting access needs a signed-in visitor with a confirmed email (see ProposalAuthSteps).
+ * Once the team approves, that account sees the full document whenever it is signed in;
+ * signing out locks it again.
  *
  * The document is view-only: no download link, no right-click or drag, print is blanked,
  * and the pages are covered whenever the tab loses focus (e.g. a screenshot tool opens).
@@ -14,13 +16,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { warmUpApi } from '../../context/AuthContext.jsx';
+import { useAuth, warmUpApi } from '../../context/AuthContext.jsx';
+import { SignInStep, VerifyEmailStep } from './ProposalAuthSteps.jsx';
 import styles from './ProposalViewer.module.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const ACCESS_KEY = 'anoryx_proposal_access';
+const LEGACY_ACCESS_KEY = 'anoryx_proposal_access'; // old link-token storage, cleared on load
 const A4_RATIO = 1.414;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const PROPOSAL_ROLES = [
   { value: 'investor', label: 'Investor' },
@@ -52,27 +54,17 @@ async function fetchResilient(url, options, { onRetry, isCancelled = () => false
   }
 }
 
-function readStoredAccess() {
+/** Access now follows the signed-in account; drop old link tokens from storage and the URL. */
+function clearLegacyAccess() {
   try {
-    return localStorage.getItem(ACCESS_KEY) || '';
+    localStorage.removeItem(LEGACY_ACCESS_KEY);
   } catch {
-    return '';
+    /* storage unavailable */
   }
-}
-
-/** Takes ?access=<token> from the URL (once), stores it and removes it from the address bar. */
-function takeAccessFromUrl() {
   const url = new URL(window.location.href);
-  const token = url.searchParams.get('access');
-  if (!token) return '';
+  if (!url.searchParams.has('access')) return;
   url.searchParams.delete('access');
   window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
-  try {
-    localStorage.setItem(ACCESS_KEY, token);
-  } catch {
-    /* storage unavailable: token still works for this visit */
-  }
-  return token;
 }
 
 function Watermark({ text }) {
@@ -147,10 +139,11 @@ function LockedPage({ number, width }) {
   );
 }
 
-const emptyForm = (role) => ({ fullName: '', workEmail: '', organisation: '', role: role || '', message: '' });
+const emptyForm = (role, name) => ({ fullName: name || '', organisation: '', role: role || '', message: '' });
 
-function RequestForm({ presetRole, lockedFrom, pageCount, onClose }) {
-  const [form, setForm] = useState(() => emptyForm(presetRole));
+function RequestForm({ presetRole, lockedFrom, pageCount, onClose, pendingSince, onSent }) {
+  const { user, token } = useAuth();
+  const [form, setForm] = useState(() => emptyForm(presetRole, user?.name));
   const [status, setStatus] = useState('idle'); // idle | sending | sent | error
   const [error, setError] = useState('');
   const [sentAt, setSentAt] = useState(null);
@@ -163,9 +156,9 @@ function RequestForm({ presetRole, lockedFrom, pageCount, onClose }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!form.fullName.trim() || !EMAIL_REGEX.test(form.workEmail.trim()) || !form.role) {
+    if (!form.fullName.trim() || !form.role) {
       setStatus('error');
-      setError('Please add your name, a valid email address and how you would like to be involved.');
+      setError('Please add your name and how you would like to be involved.');
       return;
     }
     setStatus('sending');
@@ -173,13 +166,15 @@ function RequestForm({ presetRole, lockedFrom, pageCount, onClose }) {
     try {
       const res = await fetchResilient(`${API_BASE}/api/proposal-request`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Could not send your request.');
-      setSentAt(data.sentAt ? new Date(data.sentAt) : new Date());
+      const at = data.sentAt ? new Date(data.sentAt) : new Date();
+      setSentAt(at);
       setStatus('sent');
+      onSent?.(at);
     } catch (err) {
       setStatus('error');
       setError(err.message || 'Could not send your request. Please try again.');
@@ -188,7 +183,7 @@ function RequestForm({ presetRole, lockedFrom, pageCount, onClose }) {
 
   // Keep who they are, clear the rest, so another request is quick to send.
   const sendAnother = () => {
-    setForm((f) => ({ ...emptyForm(f.role), fullName: f.fullName, workEmail: f.workEmail, organisation: f.organisation }));
+    setForm((f) => ({ ...emptyForm(f.role, f.fullName), organisation: f.organisation }));
     setStatus('idle');
     setError('');
   };
@@ -206,8 +201,8 @@ function RequestForm({ presetRole, lockedFrom, pageCount, onClose }) {
           <strong>Anoryx Tech Solutions team</strong>
         </p>
         <p>
-          Once it&apos;s approved we&apos;ll email <strong>{form.workEmail}</strong> a private link that unlocks pages{' '}
-          {lockedFrom}–{pageCount}.
+          Once it&apos;s approved we&apos;ll email <strong>{user?.email}</strong>, and pages {lockedFrom}–{pageCount}{' '}
+          unlock here whenever you are signed in with that email.
         </p>
         <div className={styles.sentActions}>
           <button type="button" className={styles.secondaryBtn} onClick={sendAnother}>Send another request</button>
@@ -219,14 +214,20 @@ function RequestForm({ presetRole, lockedFrom, pageCount, onClose }) {
 
   return (
     <form className={styles.form} onSubmit={submit} noValidate>
+      {pendingSince && (
+        <p className={styles.pendingNote}>
+          Your request from {new Date(pendingSince).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })} is
+          waiting for review. You can send another one below.
+        </p>
+      )}
       <div className={styles.formGrid}>
         <label>
           Full name
           <input name="fullName" value={form.fullName} onChange={update} onFocus={warmUpApi} autoComplete="name" required />
         </label>
         <label>
-          Work / personal email
-          <input name="workEmail" type="email" value={form.workEmail} onChange={update} autoComplete="email" required />
+          Email <span className={styles.optional}>(your account)</span>
+          <input type="email" value={user?.email || ''} readOnly className={styles.readOnly} />
         </label>
         <label>
           Firm or company
@@ -258,6 +259,9 @@ function RequestForm({ presetRole, lockedFrom, pageCount, onClose }) {
 }
 
 export default function ProposalViewer({ presetRole = '', requestSignal = 0, onAccess }) {
+  const { token, user, emailVerified } = useAuth();
+  const session = token && emailVerified ? token : ''; // only confirmed sessions can unlock
+  const [pendingSince, setPendingSince] = useState(null);
   const wrapRef = useRef(null);
   const scrollRef = useRef(null);
   const lockedRef = useRef(null);
@@ -298,28 +302,36 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
     }));
   }, [currentPage]);
 
-  // Load meta + the right document (full when the access token is valid, else preview).
+  useEffect(clearLegacyAccess, []);
+
+  // Load meta + the right document: full for a signed-in account with a grant, else preview.
+  // Runs again on sign-in / sign-out, so signing out locks the document immediately.
   useEffect(() => {
     let cancelled = false;
     const retry = { onRetry: () => !cancelled && setWaking(true), isCancelled: () => cancelled };
+    setPdf(null);
+    setAccess(null);
+    setPendingSince(null);
     (async () => {
       try {
-        const token = takeAccessFromUrl() || readStoredAccess();
         const metaRes = await fetchResilient(`${API_BASE}/api/proposal/meta`, undefined, retry);
         const metaData = await metaRes.json().catch(() => ({}));
         if (!metaRes.ok) throw new Error(metaData.error || 'The proposal is not available right now.');
 
         let bytes;
         let unlocked = null;
-        if (token) {
-          const check = await fetchResilient(`${API_BASE}/api/proposal/access`, { headers: { Authorization: `Bearer ${token}` } }, retry);
-          if (check.ok) {
-            unlocked = await check.json();
-            const docRes = await fetchResilient(`${API_BASE}/api/proposal/document`, { headers: { Authorization: `Bearer ${token}` } }, retry);
-            if (docRes.ok) bytes = await docRes.arrayBuffer();
-            else unlocked = null;
-          } else if (check.status === 401) {
-            try { localStorage.removeItem(ACCESS_KEY); } catch { /* ignore */ }
+        let pending = null;
+        if (session) {
+          const auth = { headers: { Authorization: `Bearer ${session}` } };
+          const statusRes = await fetchResilient(`${API_BASE}/api/proposal/status`, auth, retry);
+          const status = statusRes.ok ? await statusRes.json().catch(() => ({})) : {};
+          pending = status.pendingSince || null;
+          if (status.access) {
+            const docRes = await fetchResilient(`${API_BASE}/api/proposal/document`, auth, retry);
+            if (docRes.ok) {
+              bytes = await docRes.arrayBuffer();
+              unlocked = status.access;
+            }
           }
         }
         if (!bytes) {
@@ -334,7 +346,8 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
         if (cancelled) return;
         setMeta({ pageCount: metaData.pageCount, previewPages: metaData.previewPages });
         setAccess(unlocked);
-        if (unlocked) onAccess?.(unlocked);
+        setPendingSince(pending);
+        onAccess?.(unlocked);
         setPdf(doc);
       } catch (err) {
         if (!cancelled) setLoadError(err.message || 'The proposal could not be loaded.');
@@ -345,7 +358,7 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
     return () => {
       cancelled = true;
     };
-  }, [loadAttempt]);
+  }, [loadAttempt, session]);
 
   const retryLoad = () => {
     setLoadError('');
@@ -565,7 +578,21 @@ export default function ProposalViewer({ presetRole = '', requestSignal = 0, onA
                 <p>The full proposal covers our go-to-market plan, unit economics and capital plan. Tell us who you are and we&apos;ll send you a private link.</p>
               </div>
             </div>
-            <RequestForm presetRole={presetRole} lockedFrom={lockedFrom} pageCount={meta.pageCount} onClose={() => setPanelOpen(false)} />
+            {!user ? (
+              <SignInStep />
+            ) : !emailVerified ? (
+              <VerifyEmailStep />
+            ) : (
+              <RequestForm
+                key={user.email}
+                presetRole={presetRole}
+                lockedFrom={lockedFrom}
+                pageCount={meta.pageCount}
+                pendingSince={pendingSince}
+                onSent={setPendingSince}
+                onClose={() => setPanelOpen(false)}
+              />
+            )}
           </div>
         </div>,
         document.body

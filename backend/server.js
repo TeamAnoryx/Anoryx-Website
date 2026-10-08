@@ -5,6 +5,7 @@
  */
 
 require('dotenv').config();
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -34,11 +35,23 @@ function authMiddleware(req, res, next) {
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     req.userId = payload.userId;
+    req.userEmail = payload.email;
+    // True only when this session proved the email: Google sign-in or an emailed code.
+    // Email sign-up alone does not prove ownership of the address.
+    req.emailVerified = payload.verified === true;
     next();
   } catch (err) {
     return res.status(401).json({ success: false, error: 'Invalid or expired token' });
   }
 }
+
+function requireVerifiedEmail(req, res, next) {
+  if (req.emailVerified) return next();
+  return res.status(403).json({ success: false, code: 'EMAIL_NOT_VERIFIED', error: 'Please confirm your email address first.' });
+}
+
+const signSession = (user, verified) =>
+  jwt.sign({ userId: user._id.toString(), email: user.email, verified }, JWT_SECRET, { expiresIn: '7d' });
 
 function toUserPayload(doc) {
   if (!doc) return null;
@@ -137,11 +150,7 @@ app.post('/api/auth/signup', authRateLimiter, async (req, res) => {
       },
       { upsert: true, returnDocument: 'after' }
     );
-    const token = jwt.sign(
-      { userId: user._id.toString(), email: user.email },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = signSession(user, false);
     res.status(200).json({
       success: true,
       token,
@@ -201,11 +210,7 @@ app.post('/api/auth/google', authRateLimiter, async (req, res) => {
       },
       { upsert: true, returnDocument: 'after' }
     );
-    const token = jwt.sign(
-      { userId: user._id.toString(), email: user.email },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = signSession(user, payload.email_verified !== false);
     res.status(200).json({
       success: true,
       token,
@@ -275,6 +280,87 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Me error:', err);
     res.status(500).json({ success: false, error: 'Request failed' });
+  }
+});
+
+// ── Email verification code (proves the signed-in visitor owns their email) ──
+const CODE_TTL_MS = 10 * 60 * 1000;
+const CODE_MAX_ATTEMPTS = 5;
+const hashCode = (userId, code) => crypto.createHash('sha256').update(`${userId}:${code}`).digest('hex');
+
+const emailCodeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { success: false, error: 'Too many codes requested. Please wait a few minutes and try again.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// POST /api/auth/email-code — email a 6-digit code to the signed-in address
+app.post('/api/auth/email-code', authMiddleware, emailCodeLimiter, async (req, res) => {
+  const db = await ensureDb();
+  if (!db) return res.status(503).json({ success: false, error: 'Database not connected' });
+  try {
+    const code = String(crypto.randomInt(100000, 1000000));
+    await db.collection('email_codes').updateOne(
+      { _id: req.userId },
+      { $set: { codeHash: hashCode(req.userId, code), expiresAt: new Date(Date.now() + CODE_TTL_MS), attempts: 0 } },
+      { upsert: true }
+    );
+    const sent = await sendMailSafe(
+      {
+        to: req.userEmail,
+        subject: `${code} is your Anoryx verification code`,
+        text: `Your Anoryx verification code is ${code}\n\nIt expires in 10 minutes. If you didn't ask for it, you can ignore this email.\n\nAnoryx Tech Solutions`,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:480px;color:#091E42">
+            <p>Your Anoryx verification code is</p>
+            <p style="font-size:30px;font-weight:bold;letter-spacing:6px;margin:16px 0">${code}</p>
+            <p style="font-size:13px;color:#6B778C">It expires in 10 minutes. If you didn't ask for it, you can ignore this email.</p>
+            <p>Anoryx Tech Solutions</p>
+          </div>`,
+      },
+      'Verification code',
+      code
+    );
+    if (!sent && isProduction) {
+      return res.status(502).json({ success: false, error: 'We could not send the code. Please try again shortly.' });
+    }
+    res.json({ success: true, email: req.userEmail });
+  } catch (err) {
+    console.error('Email code error:', err);
+    res.status(500).json({ success: false, error: 'Could not send the code.' });
+  }
+});
+
+// POST /api/auth/verify-email — check the code; returns a verified session token
+app.post('/api/auth/verify-email', authMiddleware, async (req, res) => {
+  const db = await ensureDb();
+  if (!db) return res.status(503).json({ success: false, error: 'Database not connected' });
+  try {
+    const code = String((req.body || {}).code || '').replace(/\D/g, '');
+    const codes = db.collection('email_codes');
+    const entry = await codes.findOne({ _id: req.userId });
+    if (!entry || entry.expiresAt < new Date() || entry.attempts >= CODE_MAX_ATTEMPTS) {
+      return res.status(400).json({ success: false, error: 'This code has expired. Please ask for a new one.' });
+    }
+    const expected = Buffer.from(entry.codeHash);
+    const given = Buffer.from(hashCode(req.userId, code));
+    if (code.length !== 6 || !crypto.timingSafeEqual(expected, given)) {
+      await codes.updateOne({ _id: req.userId }, { $inc: { attempts: 1 } });
+      return res.status(400).json({ success: false, error: 'That code is not correct. Please check it and try again.' });
+    }
+    await codes.deleteOne({ _id: req.userId });
+    const user = await db.collection('users').findOneAndUpdate(
+      { _id: new ObjectId(req.userId) },
+      { $set: { emailVerifiedAt: new Date(), updatedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
+    if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+    res.json({ success: true, token: signSession(user, true), user: toUserPayload(user) });
+  } catch (err) {
+    console.error('Verify email error:', err);
+    res.status(500).json({ success: false, error: 'Verification failed.' });
   }
 });
 
@@ -385,11 +471,6 @@ const proposalRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const bearerToken = (req) => {
-  const auth = req.headers.authorization || '';
-  return auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-};
-
 /** Send an email; in development without SMTP, log the important link instead. */
 async function sendMailSafe(options, devLinkLabel, devLink) {
   const transporter = getTransporter();
@@ -440,22 +521,31 @@ app.get('/api/proposal/preview', async (req, res) => {
   }
 });
 
-// GET /api/proposal/access — is this access token valid? (Authorization: Bearer <token>)
-app.get('/api/proposal/access', async (req, res) => {
+// GET /api/proposal/status — the signed-in, verified visitor's grant and latest pending request
+app.get('/api/proposal/status', authMiddleware, requireVerifiedEmail, async (req, res) => {
   const db = await ensureDb();
   if (!db) return res.status(503).json({ success: false, error: 'Database not connected' });
-  const request = await proposal.findAccess(db, bearerToken(req));
-  if (!request) return res.status(401).json({ success: false, error: 'This access link is invalid or has expired.' });
-  res.json({ success: true, name: request.fullName, email: request.workEmail, expiresAt: request.accessExpiresAt });
+  try {
+    const grant = await proposal.findGrant(db, req.userEmail);
+    const pending = grant ? null : await proposal.findPending(db, req.userEmail);
+    res.json({
+      success: true,
+      access: grant ? { name: grant.fullName, email: grant.workEmail, expiresAt: grant.accessExpiresAt } : null,
+      pendingSince: pending ? pending.createdAt : null,
+    });
+  } catch (err) {
+    console.error('Proposal status error:', err);
+    res.status(500).json({ success: false, error: 'Could not check your access.' });
+  }
 });
 
-// GET /api/proposal/document — full PDF for approved requesters only
-app.get('/api/proposal/document', async (req, res) => {
+// GET /api/proposal/document — full PDF for signed-in, verified visitors with a grant
+app.get('/api/proposal/document', authMiddleware, requireVerifiedEmail, async (req, res) => {
   const db = await ensureDb();
   if (!db) return res.status(503).end();
   try {
-    const request = await proposal.findAccess(db, bearerToken(req));
-    if (!request) return res.status(401).json({ success: false, error: 'This access link is invalid or has expired.' });
+    const request = await proposal.findGrant(db, req.userEmail, { countView: true });
+    if (!request) return res.status(403).json({ success: false, error: 'You do not have access to the full proposal yet.' });
     const doc = await proposal.loadDocument(db);
     if (!doc) return res.status(404).end();
     res.set({ 'Content-Type': 'application/pdf', 'Cache-Control': 'private, no-store' });
@@ -467,12 +557,13 @@ app.get('/api/proposal/document', async (req, res) => {
 });
 
 // POST /api/proposal-request — ask for full access; emails the team a "Give access" link
-app.post('/api/proposal-request', proposalRateLimiter, async (req, res) => {
+app.post('/api/proposal-request', authMiddleware, requireVerifiedEmail, proposalRateLimiter, async (req, res) => {
   try {
     const body = req.body || {};
     const clean = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
     const fullName = clean(body.fullName, 120);
-    const workEmail = clean(body.workEmail, 200).toLowerCase();
+    // Requests are tied to the signed-in account's verified email, never a typed one.
+    const workEmail = String(req.userEmail || '').toLowerCase();
     const organisation = clean(body.organisation, 160);
     const role = PROPOSAL_ROLES[body.role] ? body.role : '';
     const message = clean(body.message, 2000);
@@ -480,7 +571,7 @@ app.post('/api/proposal-request', proposalRateLimiter, async (req, res) => {
     if (!fullName || !EMAIL_REGEX.test(workEmail) || !role) {
       return res.status(400).json({
         success: false,
-        error: 'Please add your name, a valid email address and how you would like to be involved.',
+        error: 'Please add your name and how you would like to be involved.',
       });
     }
 
@@ -492,7 +583,14 @@ app.post('/api/proposal-request', proposalRateLimiter, async (req, res) => {
       });
     }
 
-    const { id, reviewToken, createdAt } = await proposal.createRequest(db, { fullName, workEmail, organisation, role, message });
+    const { id, reviewToken, createdAt } = await proposal.createRequest(db, {
+      userId: req.userId,
+      fullName,
+      workEmail,
+      organisation,
+      role,
+      message,
+    });
     const reviewUrl = `${PUBLIC_API_URL}/api/proposal/review?id=${id}&token=${encodeURIComponent(reviewToken)}`;
     const roleLabel = PROPOSAL_ROLES[role];
 
@@ -587,7 +685,7 @@ app.get('/api/proposal/review', async (req, res) => {
       <button class="ok" name="decision" value="approve" type="submit">Give access</button>
       <button class="no" name="decision" value="deny" type="submit">Decline</button>
     </form>
-    <p style="font-size:12px;margin-top:16px">Approving emails ${escapeHtml(request.workEmail)} a private link that unlocks the full proposal for ${proposal.ACCESS_TTL_DAYS} days.</p>`));
+    <p style="font-size:12px;margin-top:16px">Approving unlocks the full proposal for ${escapeHtml(request.workEmail)} for ${proposal.ACCESS_TTL_DAYS} days, whenever they are signed in with that email. We email them to let them know.</p>`));
 });
 
 // POST /api/proposal/review — approve or decline (form on the confirmation page)
@@ -608,21 +706,21 @@ app.post('/api/proposal/review', async (req, res) => {
   }
   if (decision !== 'approve') return res.status(400).send(reviewPage('Error', '<h1>Unknown action</h1>'));
 
-  const { accessToken, expiresAt } = await proposal.approveRequest(db, request);
-  const accessUrl = `${SITE_URL}${PROPOSAL_PAGE_PATH}?access=${encodeURIComponent(accessToken)}`;
+  const { expiresAt } = await proposal.approveRequest(db, request);
+  const accessUrl = `${SITE_URL}${PROPOSAL_PAGE_PATH}`;
   const firstName = request.fullName.split(' ')[0];
   const sent = await sendMailSafe(
     {
       to: request.workEmail,
       replyTo: CONTACT_EMAIL,
       subject: 'Your access to the Anoryx business proposal',
-      text: `Hi ${firstName},\n\nYou now have access to the Anoryx business proposal. Open it here (valid until ${expiresAt.toDateString()}):\n${accessUrl}\n\nPlease don't share this link.\n\nAfnan Pasha\nFounder & CEO, Anoryx Tech Solutions`,
+      text: `Hi ${firstName},\n\nYou now have access to the Anoryx business proposal until ${expiresAt.toDateString()}.\n\nOpen ${accessUrl} and sign in with ${request.workEmail} to read the full document.\n\nAfnan Pasha\nFounder & CEO, Anoryx Tech Solutions`,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:560px;color:#091E42">
           <p>Hi ${escapeHtml(firstName)},</p>
           <p>Thank you for your interest in Anoryx. You now have access to our business proposal.</p>
           <p style="margin:24px 0"><a href="${accessUrl}" style="background:#0052CC;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Open the proposal</a></p>
-          <p style="font-size:13px;color:#6B778C">This private link works until ${escapeHtml(expiresAt.toDateString())}. Please don't share it.</p>
+          <p style="font-size:13px;color:#6B778C">Sign in with <strong>${escapeHtml(request.workEmail)}</strong> to read it. Your access lasts until ${escapeHtml(expiresAt.toDateString())}.</p>
           <p>Afnan Pasha<br>Founder &amp; CEO, Anoryx Tech Solutions</p>
         </div>`,
     },
@@ -633,8 +731,7 @@ app.post('/api/proposal/review', async (req, res) => {
   res.send(reviewPage('Access given', `
     <h1>Access given</h1>
     <p>${escapeHtml(request.fullName)} can now read the full proposal until ${escapeHtml(expiresAt.toDateString())}.</p>
-    <p>${sent ? `We emailed the access link to ${escapeHtml(request.workEmail)}.` : '<strong>The email could not be sent.</strong> Send them this link yourself:'}</p>
-    ${sent ? '' : `<p class="link">${escapeHtml(accessUrl)}</p>`}`));
+    <p>${sent ? `We emailed ${escapeHtml(request.workEmail)} to let them know.` : `<strong>The email could not be sent.</strong> Tell them to sign in at ${escapeHtml(accessUrl)} with ${escapeHtml(request.workEmail)}.`}</p>`));
 });
 
 // Health check. Also used by the frontend to wake the server (and the DB connection)

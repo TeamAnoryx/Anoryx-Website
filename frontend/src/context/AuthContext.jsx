@@ -30,14 +30,18 @@ function readJson(key) {
   }
 }
 
+function tokenClaims(token) {
+  try {
+    return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+  } catch {
+    return null;
+  }
+}
+
 /** True while the token's own expiry claim is still in the future. */
 function tokenLooksValid(token) {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-    return !payload.exp || payload.exp * 1000 > Date.now();
-  } catch {
-    return false;
-  }
+  const payload = tokenClaims(token);
+  return Boolean(payload) && (!payload.exp || payload.exp * 1000 > Date.now());
 }
 
 export function AuthProvider({ children }) {
@@ -124,6 +128,8 @@ export function AuthProvider({ children }) {
     login,
     logout,
     isAuthenticated: !!token && !!user,
+    // The server only issues `verified` sessions after Google sign-in or an emailed code.
+    emailVerified: Boolean(token && tokenClaims(token)?.verified === true),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
