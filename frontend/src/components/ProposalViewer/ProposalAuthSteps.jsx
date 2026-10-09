@@ -6,10 +6,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { GOOGLE_CLIENT_ID, mountGoogleButton } from '../../utils/googleSignIn.js';
 import styles from './ProposalViewer.module.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function postJson(path, body, token) {
@@ -31,40 +31,23 @@ export function SignInStep() {
   const [error, setError] = useState('');
 
   // Google's button calls back with an ID token that the server verifies.
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) return undefined;
-    let done = false;
-    const render = () => {
-      if (done || !window.google?.accounts?.id || !googleRef.current) return false;
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: async ({ credential }) => {
-          setBusy(true);
-          setError('');
-          try {
-            const data = await postJson('/api/auth/google', { id_token: credential });
-            login(data.token, data.user);
-          } catch (err) {
-            setError(err.message);
-          } finally {
-            setBusy(false);
-          }
-        },
-      });
-      window.google.accounts.id.renderButton(googleRef.current, {
-        type: 'standard',
-        theme: 'outline',
-        size: 'large',
-        text: 'continue_with',
-        width: Math.max(googleRef.current.offsetWidth || 300, 240),
-      });
-      done = true;
-      return true;
-    };
-    if (render()) return undefined;
-    const id = setInterval(() => render() && clearInterval(id), 150);
-    return () => clearInterval(id);
-  }, [login]);
+  useEffect(
+    () =>
+      mountGoogleButton(() => googleRef.current, async ({ credential }) => {
+        if (!credential) return;
+        setBusy(true);
+        setError('');
+        try {
+          const data = await postJson('/api/auth/google', { id_token: credential });
+          login(data.token, data.user);
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setBusy(false);
+        }
+      }),
+    [login]
+  );
 
   const submit = async (e) => {
     e.preventDefault();
